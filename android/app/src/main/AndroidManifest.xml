@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 	package="com.example.fan_pix_snap">
-    <!-- カメラのパーミッションを設定 -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- カメラがインストールされていない場合、アプリのインストール不可とする -->
     <uses-feature android:name="android.hardware.camera" android:required="true"/>
@@ -13,13 +20,26 @@
 <!--    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>-->
 <!--    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>-->
     <!-- P2P通信を使用するために必要な権限   -->
+<!--    <uses-permission android:name="android.permission.BLUETOOTH" />-->
+<!--    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />-->
+<!--    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />-->
+    <!-- Android 12以降の新しいBluetooth権限 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+<!--    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />-->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <application
+<!--    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />-->
+    <!-- Android 11以前の権限 -->
+<!--    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />-->
+<!--    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />-->
+    <!-- Android 9以前の権限 -->
+<!--    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="28" />-->
+<!--    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />-->
+<!--    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />-->
+    <!-- Google Play StoreへのBluetooth機能の宣言 -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />    <application
         android:label="fan_pix_snap"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"

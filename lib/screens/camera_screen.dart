@@ -12,8 +12,13 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'qr_code_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import '../services/app_state.dart';
 import '../services/firebase_service.dart';
-import '../services/nearby_transfer_page.dart';
+import '../services/local_server_page.dart';
+import '../services/local_client_page.dart';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -39,6 +44,10 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   // ダイアログが開いているか
   bool _isDialogOpen = false;
 
+  // 接続結果メッセージを格納
+  String _statusMessage = '';
+  String? _connectedDevice;
+
   @override
   // ウィジエット初期化時に、カメラアクセス権を確認
   void initState() {
@@ -48,6 +57,8 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     _image = null;
     // ライフサイクルの変更祖監視するためのオブザーバーを登録
     WidgetsBinding.instance.addObserver(this);
+
+    _loadPreferences();
   }
 
   @override
@@ -56,6 +67,20 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     // ライフサイクルの変更を監視するためのオブザーバを削除
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  Future<void> _loadPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _useFirebaseStorage = prefs.getBool('useFirebaseStorage') ?? true;
+      _connectedDevice = prefs.getString('connectedDevice');
+    });
+  }
+
+  Future<void> _savePreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('useFirebaseStorage', _useFirebaseStorage);
+    await prefs.setString('connectedDevice', _connectedDevice ?? '');
   }
 
   // カメラのパーミッションを確認し、状態に応じたダイアログを表示
@@ -182,33 +207,32 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
       }
     }
   }
-
   // 権限を再度要求するためのダイアログ
   void _showCameraPermissionDialog() {
     _isDialogOpen = true;
     showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('アプリ使用には権限の設定が必要です'),
-          content: Text('このアプリを使用するために、カメラへのアクセス許可が必要です。設定画面に移動して権限を有効にしてください。'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _isDialogOpen = false;
-              },
-              child: Text('閉じる'),
-            ),
-            TextButton(
-              onPressed: () {
-                openAppSettings();
-              },
-              child: Text('設定に移動')
-            ),
-          ],
-        );
-      }
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('アプリ使用には権限の設定が必要です'),
+            content: Text('このアプリを使用するために、カメラへのアクセス許可が必要です。設定画面に移動して権限を有効にしてください。'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _isDialogOpen = false;
+                },
+                child: Text('閉じる'),
+              ),
+              TextButton(
+                  onPressed: () {
+                    openAppSettings();
+                  },
+                  child: Text('設定に移動')
+              ),
+            ],
+          );
+        }
     );
   }
 
@@ -368,16 +392,16 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   Future<String> _saveImageToLocalStorage(Uint8List imageBytes) async {
     String filePath = '';
     if(Platform.isAndroid) {
-      final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-      final androidInfo = await deviceInfo.androidInfo;
-      final int androidOsVersion = androidInfo.version.sdkInt;
+      // final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      // final androidInfo = await deviceInfo.androidInfo;
+      // final int androidOsVersion = androidInfo.version.sdkInt;
 
       // Android13以上の場合（バージョン33以上）
       if(Platform.isAndroid) {
         print('Android13端末');
         filePath = await _saveImageToLocalStorageAndroid(imageBytes);
       }
-    // IOSの場合
+      // IOSの場合
     } else if(Platform.isIOS) {
       filePath = await _saveImageToLocalStorageIOS(imageBytes);
     } else {
@@ -386,17 +410,6 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     _image = null;
     // フォトライブラリの表示
     // await _openFileInGallery(filePath);
-    // P2P接続を有効にするためにNearbyTransferPageに遷移
-    if (filePath != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => NearbyTransferPage(
-              isHost: false,
-              filePath: filePath),
-        ),
-      );
-    }
     return filePath;
   }
 
@@ -459,22 +472,23 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     try {
       String imageUrl;
       String localUrl;
+
       // 保存先がクラウドのストレージ
       if(_useFirebaseStorage) {
         // オンラインの場合
         if(await _isOnline()) {
           // デバイスの一時保存先パスを取得し、一時ディレクトリに画像を保存
           final directory = await getTemporaryDirectory();
-          // 一時保存先のパスに対して画像を保存
           final editedImagePath = '${directory.path}/edited_image.jpg';
-          // 編集後の画像バイトデータを書き込み、画像ファイルとして保存
           final File editedImageFile = File(editedImagePath);
           await editedImageFile.writeAsBytes(editedImageData);
-          // 保存した画像をクラウドのストレージにアップロードする。
+
+          // 保存した画像をクラウドのストレージにアップロードする
           imageUrl = await FirebaseService.uploadImage(editedImageFile);
-          print('imageUrlの確認； &imageUrl');
+          print('imageUrlの確認； $imageUrl');
+
           if (imageUrl.isNotEmpty) {
-            // アップロードが成功した場合、QRコード表示画面へ遷移する。
+            // アップロードが成功した場合、QRコード表示画面へ遷移
             print('Image uploaded successfully: $imageUrl');
             Navigator.push(
               context,
@@ -489,18 +503,20 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
         } else {
           // オフライン状態の場合
           localUrl = await _saveImageToLocalStorage(editedImageData);
-          // オフラインの場合はローカルに保存
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('現在オフラインです。ローカルに保存しました：&localUrl')),
+            SnackBar(content: Text('現在オフラインです。ローカルに保存しました：$localUrl')),
           );
         }
       } else {
-        // 保存先がローカルの場合は、ローカルに保存
-        localUrl = await _saveImageToLocalStorage(editedImageData);
-        print('ローカルに保存した画像のパス；$localUrl');
+        // 保存先がローカルの場合は、ローカルサーバに送信
+        localUrl = await _sendImageToServer(editedImageData);
+        if (localUrl.isNotEmpty) {
+          print('ローカルサーバに保存した画像のパス；$localUrl');
+        } else {
+          print('ローカルサーバへの送信に失敗');
+        }
       }
-      // アップロードが正常に終了した場合の処理
-    } catch(e) {
+    } catch (e) {
       // ファイルの保存やアップデートに失敗した場合
       print('Error saving or Uploading image: $e');
     } finally {
@@ -510,7 +526,6 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
       });
     }
   }
-
   // オフライン状態を確認する
   Future<bool> _isOnline() async {
     final connectivityResult = await Connectivity().checkConnectivity();
@@ -532,6 +547,44 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     return false;
   }
 
+  Future<String> _sendImageToServer(Uint8List editedImageData) async {
+    try {
+      final ipAddress = Provider.of<AppState>(context).ipAddress;
+      final port = Provider.of<AppState>(context).port;
+      final Uri uri = Uri.parse('http://$ipAddress:$port/upload');
+
+      setState(() {
+        _statusMessage = "画像送信中...";  // 送信中のメッセージを更新
+      });
+
+      // 画像を送信するためのHTTP POSTリクエスト
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/octet-stream',  // バイナリデータとして送信
+        },
+        body: editedImageData,  // 画像のバイトデータをリクエストボディに追加
+      ).timeout(Duration(seconds: 30));  // タイムアウトを設定
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _statusMessage = '画像がサーバーに送信されました';  // 成功メッセージを表示
+        });
+        return response.body;  // サーバーからのレスポンス（成功時のメッセージなど）
+      } else {
+        setState(() {
+          _statusMessage = '画像送信失敗: ${response.statusCode}';  // 失敗メッセージを表示
+        });
+        return '画像送信失敗: ${response.statusCode}';
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = '画像送信中にエラーが発生しました: $e';  // エラーメッセージを表示
+      });
+      return '画像送信中にエラーが発生しました: $e';
+    }
+  }
+
   // 保存先選択画面
   void _showStorageSelectionDialog() {
     showDialog(
@@ -550,6 +603,7 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
                   onChanged: (bool? value) {
                     setState((){
                       _useFirebaseStorage = value!;
+                      _savePreferences();
                     });
                     Navigator.of(context).pop();
                   },
@@ -563,10 +617,11 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
                   onChanged: (bool? value){
                     setState((){
                       _useFirebaseStorage = value!;
+                      _savePreferences();
                     });
                     Navigator.of(context).pop();
                   },
-                 ),
+                ),
               ),
             ],
           ),
@@ -591,25 +646,56 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
       // Centerウィジエットを使用して表示
       body: Center(
         child: _isLoading
-            // ローディング中の場合は、プログレスインジケータを表示
+        // ローディング中の場合は、プログレスインジケータを表示
             ? CircularProgressIndicator()
             : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                      onPressed: _openCamera,
-                      child: Text('カメラを起動'),
-                  ),
-                  SizedBox(height: 10),
-                  ElevatedButton(
-                      onPressed: _showStorageSelectionDialog,
-                      child: Text('保存先を選択'),
-                  ),
-                  Text(_useFirebaseStorage
-                    ? '現在の保存先：Firebase Storage'
-                    : '現在の保存先：ローカル'),
-                ],
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: _openCamera,
+              child: Text('カメラを起動'),
             ),
+            SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _showStorageSelectionDialog,
+              child: Text('保存先を選択'),
+            ),
+            Text(_useFirebaseStorage
+                ? '現在の保存先：Firebase Storage'
+                : '現在の保存先：ローカル'),
+            if (!_useFirebaseStorage)
+              ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LocalServerPage()),
+                    );
+                  },
+                  child: Text(' 画像保存端末に設定 '),
+              ),
+            if (!_useFirebaseStorage)
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LocalClientPage(
+                        onConnected:(String deviceName) {
+                          setState(() {
+                            _savePreferences();
+                          });
+                        })),
+                  );
+                },
+                child: Text(' 画像保存端末に接続 '),
+              ),
+            if (!_useFirebaseStorage)
+            SizedBox(height: 20),
+            Text(
+              _statusMessage,  // 接続結果を表示
+              style: TextStyle(fontSize: 18),
+            ),
+          ],
+        ),
       ),
     );
   }
