@@ -1,0 +1,25 @@
+name: Deploy Flutter App
+
+on:
+  push:
+    branches:
+      - main  # mainブランチにプッシュされたら実行
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v3
+
+      - name: Flutter 環境をセットアップ
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.1'
+
+      - name: 環境変数を設定
+        run: echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> $GITHUB_ENV
+
+      - name: JWT_SECRET_KEY の確認
+        run: echo "JWT_SECRET_KEY is set"
