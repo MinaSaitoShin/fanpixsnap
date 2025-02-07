@@ -6,19 +6,20 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'qr_code_screen.dart';
+import 'local_qr_code_screen.dart';
+import 'storage_qr_code_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
 import '../services/firebase_service.dart';
 import '../services/local_server_page.dart';
 import '../services/local_client_page.dart';
+import '../services/local_server_manager.dart';
 
 // カメラ画面を管理するウィジェット
 class CameraScreenState extends ChangeNotifier {
@@ -60,17 +61,29 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   // 接続しているデバイスの情報
   String? _connectedDevice;
 
+  bool uploadSuccess = false;
+
+  String? _accessKey;
+
+
+
+  // static DateTime? _lastCheckedTime;
+  // static bool? _lastOnlineStatus;
+  // static const Duration cacheDuration = Duration(seconds: 30); // キャッシュ時間
+
   @override
   // ウィジエット初期化時に、カメラアクセス権を確認
   void initState() {
     // 親クラスのinitStateメソッドを呼び出し
     super.initState();
+    // ユーザーの設定をロード
+    _loadPreferences();
     // 画像の初期化
     _image = null;
     // ライフサイクルの変更祖監視するためのオブザーバーを登録
     WidgetsBinding.instance.addObserver(this);
-    // ユーザーの設定をロード
-    _loadPreferences();
+    // パーミッションの状態をチェック
+    _checkPermissionsState();
   }
 
   @override
@@ -85,308 +98,312 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   Future<void> _loadPreferences() async {
     final storageProvider = Provider.of<AppState>(context, listen: false);
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool storedValue = prefs.getBool('useFirebaseStorage') ?? true;
-    storageProvider.toggleStorage(storedValue);
+    // **保存先の取得**（デフォルトは "firebase"）
+    String storedValue = prefs.getString('selectedStorage') ?? "firebase";
+    storageProvider.setSelectedStorage(storedValue);
+    // **接続デバイス情報の取得**
     setState(() {
       _connectedDevice = prefs.getString('connectedDevice');
     });
+    // 設定を即時反映
+    storageProvider.notifyListeners();
   }
 
   // ユーザー設定を保存（保存先設定・接続デバイス情報）
   Future<void> _savePreferences() async {
     final storageProvider = Provider.of<AppState>(context, listen: false);
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('useFirebaseStorage', storageProvider.useFirebaseStorage);
+    // **保存先の保存**
+    await prefs.setString('selectedStorage', storageProvider.selectedStorage);
+    // **接続デバイス情報の保存**
     await prefs.setString('connectedDevice', _connectedDevice ?? '');
+    // 設定を即時反映
+    storageProvider.notifyListeners();
   }
 
-  // カメラのパーミッションを確認し、状態に応じたダイアログを表示
-  Future<void> _checkCameraPermissions() async {
-    // カメラのパーミッションをリクエスト
-    var cameraRequest = await Permission.camera.request();
-    Future.microtask(() {
-      Provider.of<CameraScreenState>(context, listen: false)
-          .addLog('カメラの権限：$cameraRequest');
+  // // カメラのパーミッションを確認し、状態に応じたダイアログを表示
+  // Future<void> _checkCameraPermissions() async {
+  //   // カメラのパーミッションをリクエスト
+  //   var cameraRequest = await Permission.camera.request();
+  //   Future.microtask(() {
+  //     Provider.of<CameraScreenState>(context, listen: false)
+  //         .addLog('カメラの権限：$cameraRequest');
+  //   });
+  //   // パーミッションが許可された場合
+  //   if (cameraRequest.isGranted) {
+  //     setState(() {
+  //       _permissionsGranted = true;
+  //     });
+  //     // 権限が永久に拒否された場合
+  //   } else if (cameraRequest.isPermanentlyDenied) {
+  //     // ユーザーが「今後表示しない」を選択した場合、設定画面を開く
+  //     openAppSettings();
+  //     // 権限が一時的に拒否された場合
+  //   } else if (cameraRequest.isDenied) {
+  //     // ユーザーが拒否した場合、ダイアログで再確認
+  //     _showCameraPermissionDialog();
+  //     // 権限が制限された場合
+  //   } else if (cameraRequest.isLimited) {
+  //     // 制限付きアクセスの場合、フルアクセスを促すダイアログを表示
+  //     _showCameraLimitedPermissionDialog();
+  //   }
+  // }
+  //
+  // // 写真ストレージのパーミッションを確認
+  // Future<void> _checkStoragePermission() async {
+  //   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+  //
+  //   // Android端末
+  //   if (Platform.isAndroid) {
+  //     final androidInfo = await deviceInfo.androidInfo;
+  //     final int androidOsVersion = androidInfo.version.sdkInt;
+  //     Future.microtask(() {
+  //       Provider.of<CameraScreenState>(context, listen: false)
+  //           .addLog('Androidのバージョン：$androidOsVersion');
+  //     });
+  //
+  //     // バージョンに応じて適切なPermissionオブジェクトを取得
+  //     Permission permission = androidOsVersion >= 33
+  //         ? Permission.photos // Android 13以上
+  //         : Permission.storage; // Android 13未満
+  //
+  //     // 権限の状態を確認
+  //     var status = await permission.status;
+  //     Future.microtask(() {
+  //       Provider.of<CameraScreenState>(context, listen: false)
+  //           .addLog('ストレージアクセスの権限(Android)：$status');
+  //     });
+  //
+  //     if (status.isGranted) {
+  //       setState(() {
+  //         _storagePermissionsGranted = true;
+  //       });
+  //     } else {
+  //       // 権限をリクエスト
+  //       var requestResult = await permission.request();
+  //       Future.microtask(() {
+  //         Provider.of<CameraScreenState>(context, listen: false)
+  //             .addLog('権限リクエストの結果(Android)：$requestResult');
+  //       });
+  //       if (requestResult.isPermanentlyDenied) {
+  //         // 設定画面を開く
+  //         openAppSettings();
+  //       } else if (requestResult.isDenied) {
+  //         // 拒否時のダイアログ表示
+  //         _showStoragePermissionDialog();
+  //       } else if (requestResult.isLimited) {
+  //         // 制限付きアクセスの場合の処理
+  //         _showLimitedStoragePermissionDialog();
+  //       }
+  //     }
+  //   }
+  //   // ios端末の場合
+  //   if (Platform.isIOS) {
+  //     // IOSのバージョンを確認
+  //     final iosInfo = await deviceInfo.iosInfo;
+  //     final iosOsVersion = iosInfo.systemVersion ?? "0.0";
+  //     Future.microtask(() {
+  //       Provider.of<CameraScreenState>(context, listen: false)
+  //           .addLog('IOSのバージョン； $iosOsVersion');
+  //     });
+  //     // IOS14以上の場合
+  //     if (int.parse(iosOsVersion.split('.')[0]) >= 14) {
+  //       // 現在の写真ストレージへのアクセス権限を確認
+  //       var photoStatus = await Permission.photos.status;
+  //       Future.microtask(() {
+  //         Provider.of<CameraScreenState>(context, listen: false)
+  //             .addLog('写真アクセスの権限(IOS)：$photoStatus');
+  //       });
+  //       if (photoStatus.isGranted) {
+  //         setState(() {
+  //           _storagePermissionsGranted = true;
+  //         });
+  //       } else {
+  //         // 写真ストレージへのアクセス権限が付与されていない場合はユーザに許可を求める。
+  //         var photoRequest = await Permission.photos.request();
+  //         // 権限が永久に拒否された場合
+  //         if (photoRequest.isPermanentlyDenied) {
+  //           // アプリ側では再度権限リクエストができないため、デバイスの設定画面を開く
+  //           openAppSettings();
+  //           // 権限が一時的に拒否された場合
+  //         } else if (photoRequest.isDenied) {
+  //           // 権限を再度要求するためのダイアログ（アプリ側で表示）
+  //           _showStoragePermissionDialog();
+  //           // 権限が制限された場合
+  //         } else if (photoRequest.isLimited) {
+  //           // フルアクセスを促すダイアログ（アプリ側で表示）
+  //           _showLimitedStoragePermissionDialog();
+  //         }
+  //       }
+  //     } else {
+  //       // IOS14未満の場合
+  //       // 現在の写真ストレージへのアクセス権限を確認
+  //       var photoStatus = await Permission.photos.status;
+  //       Future.microtask(() {
+  //         Provider.of<CameraScreenState>(context, listen: false)
+  //             .addLog('写真アクセスの権限(IOS)：$photoStatus');
+  //       });
+  //       if (photoStatus.isGranted) {
+  //         setState(() {
+  //           _storagePermissionsGranted = true;
+  //         });
+  //       } else {
+  //         // 写真ストレージへのアクセス権限が付与されていない場合はユーザに許可を求める。
+  //         var photoRequest = await Permission.photos.request();
+  //         // 権限が永久に拒否された場合
+  //         if (photoRequest.isPermanentlyDenied) {
+  //           // アプリ側では再度権限リクエストができないため、デバイスの設定画面を開く
+  //           openAppSettings();
+  //           // 権限が一時的に拒否された場合
+  //         } else if (photoRequest.isDenied) {
+  //           // 権限を再度要求するためのダイアログ（アプリ側で表示）
+  //           _showStoragePermissionDialog();
+  //           // 権限が制限された場合
+  //         } else if (photoRequest.isLimited) {
+  //           // フルアクセスを促すダイアログ（アプリ側で表示）
+  //           _showLimitedStoragePermissionDialog();
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
+  //
+  // // 権限を再度要求するためのダイアログ（カメラ用）
+  // void _showCameraPermissionDialog() {
+  //   _isDialogOpen = true;
+  //   showDialog(
+  //       context: context,
+  //       builder: (BuildContext context) {
+  //         return AlertDialog(
+  //           title: Text('アプリ使用には権限の設定が必要です'),
+  //           content: Text('このアプリを使用するために、カメラへのアクセス許可が必要です。設定画面に移動して権限を有効にしてください。'),
+  //           actions: [
+  //             TextButton(
+  //               onPressed: () {
+  //                 Navigator.of(context).pop();
+  //                 _isDialogOpen = false;
+  //               },
+  //               child: Text('閉じる'),
+  //             ),
+  //             TextButton(
+  //                 onPressed: () {
+  //                   openAppSettings();
+  //                 },
+  //                 child: Text('設定に移動')
+  //             ),
+  //           ],
+  //         );
+  //       }
+  //   );
+  // }
+  //
+  // // フルアクセスを許可するように促すダイアログ
+  // void _showCameraLimitedPermissionDialog() {
+  //   _isDialogOpen = true;
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return AlertDialog(
+  //         title: Text('権限が制限されています'),
+  //         content: Text('このアプリではカメラへのアクセスが制限されています。アプリを使用するために、カメラへのアクセスを許可してください。'),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () {
+  //               Navigator.of(context).pop();
+  //               _isDialogOpen = false;
+  //             },
+  //             child: Text('閉じる'),
+  //           ),
+  //           TextButton(
+  //             onPressed: () {
+  //               openAppSettings();
+  //               Navigator.of(context).pop();
+  //             },
+  //             child: Text('設定に移動'),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
+  //
+  // // ストレージのアクセス許可をリクエストするダイアログ
+  // void _showStoragePermissionDialog() {
+  //   if (!mounted) return;
+  //   _isDialogOpen = true;
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return AlertDialog(
+  //         title: Text('ストレージへのアクセス権限が必要です'),
+  //         content: Text('このアプリを使用するためには、ストレージへのアクセスが必要です。設定画面に移動して権限を有効にしてください。'),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () {
+  //               Navigator.of(context).pop();
+  //               _isDialogOpen = false;
+  //             },
+  //             child: Text('閉じる'),
+  //           ),
+  //           TextButton(
+  //             onPressed: () {
+  //               openAppSettings();
+  //             },
+  //             child: Text('設定に移動'),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
+  //
+  //
+  // // ストレージのフルアクセスを許可するように促すダイアログ
+  // void _showLimitedStoragePermissionDialog() {
+  //   _isDialogOpen = true;
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return AlertDialog(
+  //         title: Text('権限付きの写真アクセス'),
+  //         content: Text('このアプリでは制限された写真アクセスが有効になっています。フルアクセスを許可してください。'),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () {
+  //               Navigator.of(context).pop();
+  //               _isDialogOpen = false;
+  //             },
+  //             child: Text('閉じる'),
+  //           ),
+  //           TextButton(
+  //             onPressed: () {
+  //               openAppSettings();
+  //             },
+  //             child: Text('設定に移動'),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
+  // パーミッションの状態をチェック
+  void _checkPermissionsState() {
+    final storageProvider = Provider.of<AppState>(context, listen: false);
+    setState(() {
+      _permissionsGranted = storageProvider.cameraPermission;
+      _storagePermissionsGranted = storageProvider.storagePermission;
     });
-    // パーミッションが許可された場合
-    if (cameraRequest.isGranted) {
-      setState(() {
-        _permissionsGranted = true;
-      });
-      // 権限が永久に拒否された場合
-    } else if (cameraRequest.isPermanentlyDenied) {
-      // ユーザーが「今後表示しない」を選択した場合、設定画面を開く
-      openAppSettings();
-      // 権限が一時的に拒否された場合
-    } else if (cameraRequest.isDenied) {
-      // ユーザーが拒否した場合、ダイアログで再確認
-      _showCameraPermissionDialog();
-      // 権限が制限された場合
-    } else if (cameraRequest.isLimited) {
-      // 制限付きアクセスの場合、フルアクセスを促すダイアログを表示
-      _showCameraLimitedPermissionDialog();
-    }
   }
-
-  // 写真ストレージのパーミッションを確認
-  Future<void> _checkStoragePermission() async {
-    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-
-    // Android端末
-    if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      final int androidOsVersion = androidInfo.version.sdkInt;
-      Future.microtask(() {
-        Provider.of<CameraScreenState>(context, listen: false)
-            .addLog('Androidのバージョン：$androidOsVersion');
-      });
-
-      // バージョンに応じて適切なPermissionオブジェクトを取得
-      Permission permission = androidOsVersion >= 33
-          ? Permission.photos // Android 13以上
-          : Permission.storage; // Android 13未満
-
-      // 権限の状態を確認
-      var status = await permission.status;
-      Future.microtask(() {
-        Provider.of<CameraScreenState>(context, listen: false)
-            .addLog('ストレージアクセスの権限(Android)：$status');
-      });
-
-      if (status.isGranted) {
-        setState(() {
-          _storagePermissionsGranted = true;
-        });
-      } else {
-        // 権限をリクエスト
-        var requestResult = await permission.request();
-        Future.microtask(() {
-          Provider.of<CameraScreenState>(context, listen: false)
-              .addLog('権限リクエストの結果(Android)：$requestResult');
-        });
-        if (requestResult.isPermanentlyDenied) {
-          // 設定画面を開く
-          openAppSettings();
-        } else if (requestResult.isDenied) {
-          // 拒否時のダイアログ表示
-          _showStoragePermissionDialog();
-        } else if (requestResult.isLimited) {
-          // 制限付きアクセスの場合の処理
-          _showLimitedStoragePermissionDialog();
-        }
-      }
-    }
-    // ios端末の場合
-    if (Platform.isIOS) {
-      // IOSのバージョンを確認
-      final iosInfo = await deviceInfo.iosInfo;
-      final iosOsVersion = iosInfo.systemVersion ?? "0.0";
-      Future.microtask(() {
-        Provider.of<CameraScreenState>(context, listen: false)
-            .addLog('IOSのバージョン； $iosOsVersion');
-      });
-      // IOS14以上の場合
-      if (int.parse(iosOsVersion.split('.')[0]) >= 14) {
-        // 現在の写真ストレージへのアクセス権限を確認
-        var photoStatus = await Permission.photos.status;
-        Future.microtask(() {
-          Provider.of<CameraScreenState>(context, listen: false)
-              .addLog('写真アクセスの権限(IOS)：$photoStatus');
-        });
-        if (photoStatus.isGranted) {
-          setState(() {
-            _storagePermissionsGranted = true;
-          });
-        } else {
-          // 写真ストレージへのアクセス権限が付与されていない場合はユーザに許可を求める。
-          var photoRequest = await Permission.photos.request();
-          // 権限が永久に拒否された場合
-          if (photoRequest.isPermanentlyDenied) {
-            // アプリ側では再度権限リクエストができないため、デバイスの設定画面を開く
-            openAppSettings();
-            // 権限が一時的に拒否された場合
-          } else if (photoRequest.isDenied) {
-            // 権限を再度要求するためのダイアログ（アプリ側で表示）
-            _showStoragePermissionDialog();
-            // 権限が制限された場合
-          } else if (photoRequest.isLimited) {
-            // フルアクセスを促すダイアログ（アプリ側で表示）
-            _showLimitedStoragePermissionDialog();
-          }
-        }
-      } else {
-        // IOS14未満の場合
-        // 現在の写真ストレージへのアクセス権限を確認
-        var photoStatus = await Permission.photos.status;
-        Future.microtask(() {
-          Provider.of<CameraScreenState>(context, listen: false)
-              .addLog('写真アクセスの権限(IOS)：$photoStatus');
-        });
-        if (photoStatus.isGranted) {
-          setState(() {
-            _storagePermissionsGranted = true;
-          });
-        } else {
-          // 写真ストレージへのアクセス権限が付与されていない場合はユーザに許可を求める。
-          var photoRequest = await Permission.photos.request();
-          // 権限が永久に拒否された場合
-          if (photoRequest.isPermanentlyDenied) {
-            // アプリ側では再度権限リクエストができないため、デバイスの設定画面を開く
-            openAppSettings();
-            // 権限が一時的に拒否された場合
-          } else if (photoRequest.isDenied) {
-            // 権限を再度要求するためのダイアログ（アプリ側で表示）
-            _showStoragePermissionDialog();
-            // 権限が制限された場合
-          } else if (photoRequest.isLimited) {
-            // フルアクセスを促すダイアログ（アプリ側で表示）
-            _showLimitedStoragePermissionDialog();
-          }
-        }
-      }
-    }
-  }
-
-  // 権限を再度要求するためのダイアログ（カメラ用）
-  void _showCameraPermissionDialog() {
-    _isDialogOpen = true;
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('アプリ使用には権限の設定が必要です'),
-            content: Text('このアプリを使用するために、カメラへのアクセス許可が必要です。設定画面に移動して権限を有効にしてください。'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _isDialogOpen = false;
-                },
-                child: Text('閉じる'),
-              ),
-              TextButton(
-                  onPressed: () {
-                    openAppSettings();
-                  },
-                  child: Text('設定に移動')
-              ),
-            ],
-          );
-        }
-    );
-  }
-
-  // フルアクセスを許可するように促すダイアログ
-  void _showCameraLimitedPermissionDialog() {
-    _isDialogOpen = true;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('権限が制限されています'),
-          content: Text('このアプリではカメラへのアクセスが制限されています。アプリを使用するために、カメラへのアクセスを許可してください。'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _isDialogOpen = false;
-              },
-              child: Text('閉じる'),
-            ),
-            TextButton(
-              onPressed: () {
-                openAppSettings();
-                Navigator.of(context).pop();
-              },
-              child: Text('設定に移動'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // ストレージのアクセス許可をリクエストするダイアログ
-  void _showStoragePermissionDialog() {
-    if (!mounted) return;
-    _isDialogOpen = true;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('ストレージへのアクセス権限が必要です'),
-          content: Text('このアプリを使用するためには、ストレージへのアクセスが必要です。設定画面に移動して権限を有効にしてください。'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _isDialogOpen = false;
-              },
-              child: Text('閉じる'),
-            ),
-            TextButton(
-              onPressed: () {
-                openAppSettings();
-              },
-              child: Text('設定に移動'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-
-  // ストレージのフルアクセスを許可するように促すダイアログ
-  void _showLimitedStoragePermissionDialog() {
-    _isDialogOpen = true;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('権限付きの写真アクセス'),
-          content: Text('このアプリでは制限された写真アクセスが有効になっています。フルアクセスを許可してください。'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _isDialogOpen = false;
-              },
-              child: Text('閉じる'),
-            ),
-            TextButton(
-              onPressed: () {
-                openAppSettings();
-              },
-              child: Text('設定に移動'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   // カメラを開く
   Future<void> _openCamera() async {
-    final storageProvider = Provider.of<AppState>(context, listen: false);
-    // カメラのパーミッションが有効以外の場合、ダイアログを表示する
-    if(!_permissionsGranted) {
-      await _checkCameraPermissions();
-    }
-    // カメラのパーミッションが無効の場合、TOP画面に戻る
-    if(!_permissionsGranted) {
-      return;
-    }
-
-    // 保存先がローカルで、写真ストレージのパーミッションが有効以外の場合、ダイアログを表示する
-    if(!_storagePermissionsGranted && !storageProvider.useFirebaseStorage) {
-      await _checkStoragePermission();
-    }
-
-    // 保存先がローカルで、写真ストレージのパーミッションが無効の場合、TOP画面に戻る
-    if(!_storagePermissionsGranted && !storageProvider.useFirebaseStorage) {
-      return;
-    }
+      final storageProvider = Provider.of<AppState>(context, listen: false);
+      // カメラ・ストレージへのパーミッションが有効以外の場合、ダイアログを表示する
+      if (!_permissionsGranted || !_storagePermissionsGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('カメラ又はストレージへのアクセス権限がありません')),
+        );
+        return;
+      }
 
     // 各パーミッションが有効な場合のみカメラを開く。
     // カメラを起動し、画像撮影を待つ。
@@ -453,22 +470,38 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
 
   // ローカル保存（Android端末の場合）
   Future<String> _saveImageToLocalStorageAndroid(Uint8List imageBytes) async {
-    // 保存先を指定（/storage/emulated/0/ は Android の一般的な外部ストレージパス）
-    final Directory directory = Directory('/storage/emulated/0/Pictures/fanpixsnaperr');
+    // 保存先を指定（/storage/emulated/0/ は Android の一般的なローカルストレージパス）
+    final storageProvider = Provider.of<AppState>(context, listen: false);
+    final Directory directory;
+    if (storageProvider.selectedStorage == 'device') {
+      directory = Directory(
+          '/storage/emulated/0/Pictures/fanpixsnap');
+    } else {
+      directory = Directory(
+          '/storage/emulated/0/Pictures/fanpixsnaperr');
+    }
     String dirPath = directory.path;
     Directory newDirectory = Directory(dirPath);
 
     // 保存先が存在するか確認
-    if(!await newDirectory.exists()) {
-      // 保存先が存在しない場合ディレクトリを作成する
-      await newDirectory.create(recursive: true);
+    if (!await newDirectory.exists()) {
+      try {
+        // 保存先が存在しない場合ディレクトリを作成する
+        await newDirectory.create(recursive: true);
+      } catch (e) {
+        throw Exception("ディレクトリ作成に失敗しました: $e");
+      }
     }
 
     // ファイル名は「edited_image_<タイムスタンプ>.jpg」として保存
-    final String filePath = '$dirPath/edited_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final String filePath = '$dirPath/edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
     final file = File(filePath);
     // 画像ファイルを作成して保存
-    await file.writeAsBytes(imageBytes);
+    try {
+      await file.writeAsBytes(imageBytes);
+    } catch (e) {
+      throw Exception("画像の保存に失敗しました: $e");
+    }
     Future.microtask(() {
       Provider.of<CameraScreenState>(context, listen: false)
           .addLog('ローカルストレージに画像が保存されました(Android端末)：$filePath');
@@ -479,17 +512,32 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   // ローカル保存（IOS端末の場合）
   Future<String> _saveImageToLocalStorageIOS(Uint8List imageBytes) async  {
     // IOSのアプリ専用ドキュメントディレクトリを取得
+    final storageProvider = Provider.of<AppState>(context, listen: false);
     final Directory directory = await getApplicationDocumentsDirectory();
-    Directory dirPath = Directory('${directory.path}/fanpixsnaperr');
-
-    // 保存先が存在するか確認
-    if(!await dirPath.exists()) {
-      // 保存先が存在しない場合ディレクトリを作成する
-      await dirPath.create(recursive: true);
+    final Directory dirPath;
+    if (storageProvider.selectedStorage == 'device') {
+      dirPath = Directory('${directory.path}/fanpixsnap');
+    } else {
+      dirPath = Directory('${directory.path}/fanpixsnaperr');
     }
 
+    // 保存先が存在するか確認
+    if (dirPath != null) {
+      try {
+        if (!await dirPath.exists()) {
+          // 保存先が存在しない場合ディレクトリを作成する
+          await dirPath.create(recursive: true);
+        }
+      } catch (e) {
+        throw Exception("ディレクトリ作成に失敗しました: $e");
+      }
+    } else {
+      throw Exception("保存ディレクトリの取得に失敗しました");
+    }
+
+
     // ファイル名は「edited_image_<タイムスタンプ>.jpg」として保存
-    final String filename = 'edited_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final String filename = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
     final String filePath = '$dirPath/$filename';
     final file = File(filePath);
     // 画像ファイルを作成してドキュメントディレクトリに保存
@@ -510,49 +558,65 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     }
   }
 
+  Future<File> resizeImage(File file) async {
+    final bytes = await file.readAsBytes();
+    img.Image? image = img.decodeImage(bytes);
+    if (image == null) return file;
+
+    img.Image resized = img.copyResize(image, width: 800); // 幅800pxにリサイズ
+    final resizedFile = File(file.path)
+      ..writeAsBytesSync(img.encodeJpg(resized, quality: 85)); // JPEG圧縮率85%
+
+    return resizedFile;
+  }
+
   // 加工した画像を保存
   Future<void> _saveEditedImage(Uint8List editedImageData) async {
     try {
       String imageUrl;
       String localUrl;
       final storageProvider = Provider.of<AppState>(context, listen: false);
-      // 保存先がクラウドのストレージ
-      if(storageProvider.useFirebaseStorage) {
+      // 保存先が外部ストレージサーバ
+      if(storageProvider.selectedStorage == 'firebase') {
         // オンラインの場合
         if(await _isOnline()) {
           // デバイスの一時保存先パスを取得し、一時ディレクトリに画像を保存
           final directory = await getTemporaryDirectory();
-          final editedImagePath = '${directory.path}/edited_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final fileName = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
+          final editedImagePath = '${directory.path}/$fileName';
           final File editedImageFile = File(editedImagePath);
           await editedImageFile.writeAsBytes(editedImageData);
+          File resizedImageFile = await resizeImage(editedImageFile);
 
-          // 保存した画像をクラウドのストレージにアップロードする
-          imageUrl = await FirebaseService.uploadImage(editedImageFile);
-          Future.microtask(() {
-            Provider.of<CameraScreenState>(context, listen: false)
-                .addLog('imageUrlの確認； $imageUrl');
-          });
-
-          if (imageUrl.isNotEmpty) {
-            // アップロードが成功した場合、QRコード表示画面へ遷移
-            Future.microtask(() {
-              Provider.of<CameraScreenState>(context, listen: false)
-                  .addLog('ストレージへ保存: $imageUrl');
-            });
-            Navigator.push(
+          // 保存した画像を外部のストレージサーバーにアップロードする
+          // imageUrl = await FirebaseService.uploadImage(editedImageFile);
+          // Future.microtask(() {
+          //   Provider.of<CameraScreenState>(context, listen: false)
+          //       .addLog('imageUrlの確認； $imageUrl');
+          // });
+          //
+          // if (imageUrl.isNotEmpty) {
+          // アップロードが成功した場合、QRコード表示画面へ遷移
+          uploadSuccess = await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => QRCodeScreen(imageUrl: imageUrl),
+                builder: (context) => StorageQRCodeScreen(imageFuture: FirebaseService.uploadImage(resizedImageFile)),
               ),
             );
-          } else {
+          Future.microtask(() {
+            Provider.of<CameraScreenState>(context, listen: false)
+                .addLog('外部ストレージサーバに画像を保存しました：$resizedImageFile');
+          });
+
+          // } else {
+          if (!uploadSuccess) {
             // アップロード処理に失敗した場合（アップロード先のURLがEmpty）
-            localUrl = await _saveImageToLocalStorage(editedImageData);
+            localUrl = await _saveImageToLocalStorage(editedImageData) ?? "ローカル保存失敗";
             showDialog(
               context: context,
               builder: (context) {
                 return AlertDialog(
-                  content: Text('ローカルサーバーへの保存に失敗しました。ローカルに保存しました：$localUrl'),
+                  content: Text('外部ストレージサーバーへの保存に失敗しました。ローカルに保存しました：$localUrl'),
                   actions: [
                     TextButton(
                       onPressed: () {
@@ -567,12 +631,12 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
             );
             Future.microtask(() {
               Provider.of<CameraScreenState>(context, listen: false)
-                  .addLog('ローカルサーバーへの保存失敗。ローカルに保存');
+                  .addLog('ローカルサーバーへの保存失敗。ローカルに保存：$localUrl');
             });
           }
         } else {
           // オフライン状態の場合はローカルに保存
-          localUrl = await _saveImageToLocalStorage(editedImageData);
+          localUrl = await _saveImageToLocalStorage(editedImageData) ?? "ローカル保存失敗";
           showDialog(
             context: context,
             builder: (context) {
@@ -592,16 +656,16 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
           );
           Future.microtask(() {
             Provider.of<CameraScreenState>(context, listen: false)
-                .addLog('オフラインのためローカルに保存');
+                .addLog('オフラインのためローカルに保存：$localUrl');
           });
         }
-      } else {
+      } else if (storageProvider.selectedStorage == 'local_server') {
         // 保存先がローカルの場合は、ローカルサーバに送信
         localUrl = await _sendImageToLocalServer(editedImageData);
         if (localUrl.isNotEmpty) {
           Future.microtask(() {
             Provider.of<CameraScreenState>(context, listen: false)
-                .addLog('ローカルサーバに保存した画像のパス；$localUrl');
+                .addLog('ローカルサーバに保存：$localUrl');
           });
         } else {
           Future.microtask(() {
@@ -609,13 +673,46 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
                 .addLog('ローカルサーバへの送信に失敗');
           });
         }
+      } else if (storageProvider.selectedStorage == 'device') {
+        localUrl = await _saveImageToLocalStorage(editedImageData) ?? "ローカル保存失敗";
+        if (localUrl.isNotEmpty) {
+          Future.microtask(() {
+            Provider.of<CameraScreenState>(context, listen: false)
+                .addLog('自端末に保存：$localUrl');
+          });
+          final appState = Provider.of<AppState>(context, listen: false);
+          final timestamp = DateTime.now().toLocal().millisecondsSinceEpoch;
+          final expirationTime = 5 * 60 * 1000;
+          _accessKey = localUrl;
+          final serverUrl =
+          _accessKey != null
+              ? 'http://${appState.localIpAddress}:${appState.port}?file=$_accessKey&timestamp=$timestamp&expiresIn=$expirationTime'
+              : '';
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocalQRCodeDisplayScreen(
+                serverUrl: serverUrl,
+                onBack: _resetSelection,
+              ),
+            ),
+          );
+        } else {
+          Future.microtask(() {
+            Provider.of<CameraScreenState>(context, listen: false)
+                .addLog('自端末への保存失敗');
+          });
+        }
       }
     } catch (e) {
       // ファイルの保存やアップデートに失敗した場合
-      Future.microtask(() {
-        Provider.of<CameraScreenState>(context, listen: false)
-            .addLog('ファイルの保存に失敗: $e');
-      });
+      if(uploadSuccess == false) {
+        Future.microtask(() {
+          Provider.of<CameraScreenState>(context, listen: false)
+              .addLog('ファイルの保存に失敗: $e');
+        });
+      }
     } finally {
       // すべての処理が終わったらローディング状態を解除
       setState(() {
@@ -624,37 +721,51 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     }
   }
 
+  void _resetSelection() {
+    if (mounted) {
+      setState(() {
+        _accessKey = null;
+      });
+      Navigator.pop(context); // QRコード画面から戻る
+    }
+  }
+  // Future<bool> _isOnline() async {
+  //   // キャッシュが有効であれば、前回の結果を返す
+  //   if (_lastCheckedTime != null &&
+  //       DateTime.now().difference(_lastCheckedTime!) < cacheDuration &&
+  //       _lastOnlineStatus != null) {
+  //     return _lastOnlineStatus!;
+  //   }
+  //
+  //   // 実際のオンラインチェックを実行
+  //   bool onlineStatus = await _checkInternetConnection();
+  //
+  //   // 結果をキャッシュ
+  //   _lastCheckedTime = DateTime.now();
+  //   _lastOnlineStatus = onlineStatus;
+  //
+  //   return onlineStatus;
+  // }
+
   // オフライン状態を確認する
   Future<bool> _isOnline() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    Future.microtask(() {
-      Provider.of<CameraScreenState>(context, listen: false)
-          .addLog('ネットワーク：$connectivityResult');
-    });
-    // connectivityResultがリストかどうか確認
-    if(connectivityResult is List<ConnectivityResult>) {
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      bool isConnected = connectivityResult.toString() == "[ConnectivityResult.mobile]" ||
+          connectivityResult.toString() == "[ConnectivityResult.wifi]";
       Future.microtask(() {
         Provider.of<CameraScreenState>(context, listen: false)
-            .addLog('接続状態のリスト：$connectivityResult');
+            .addLog(isConnected ? 'ネットワークオンライン' : 'ネットワークオフライン');
       });
-      // リストにモバイル接続かWi-Fi接続が含まれているか確認
-      return connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.wifi);
-    } else {
-      // connectivityResultがリストではない場合、モバイル接続かWi-Fi接続か判定
-      if (connectivityResult == ConnectivityResult.mobile || connectivityResult == ConnectivityResult.wifi) {
-        Future.microtask(() {
-          Provider.of<CameraScreenState>(context, listen: false)
-              .addLog('ネットワークオンライン');
-        });
-        return true;
-      }
+      return isConnected;
+    } catch (e) {
+      Future.microtask(() {
+        Provider.of<CameraScreenState>(context, listen: false)
+            .addLog('ネットワーク状態の取得に失敗: $e');
+      });
+      // エラー時はオフラインとみなす
+      return false;
     }
-    // ネットワーク接続がない場合
-    Future.microtask(() {
-      Provider.of<CameraScreenState>(context, listen: false)
-          .addLog('ネットワークオフライン');
-    });
-    return false;
   }
 
   // ローカルサーバーに画像を送信
@@ -747,6 +858,17 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     }
   }
 
+  void _onStorageSelected(String value) async {
+    final storageProvider = Provider.of<AppState>(context, listen: false);
+
+    setState(() {
+      storageProvider.setSelectedStorage(value);
+      _savePreferences();
+    });
+
+    Navigator.of(context).pop();
+  }
+
   // 保存先選択画面
   void _showStorageSelectionDialog() {
     showDialog(
@@ -759,30 +881,32 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: Text('外部ストレージに保存'),
+                title: Text('外部ストレージサーバーに保存'),
                 leading: Radio(
-                  value: true,
-                  groupValue: storageProvider.useFirebaseStorage,
-                  onChanged: (bool? value) {
-                    setState((){
-                      storageProvider.toggleStorage(value!);
-                      _savePreferences();
-                    });
-                    Navigator.of(context).pop();
+                  value: 'firebase',
+                  groupValue: storageProvider.selectedStorage,
+                  onChanged: (String? value) {
+                    if (value != null) _onStorageSelected(value);
                   },
                 ),
               ),
               ListTile(
-                title: Text('ローカルに保存'),
+                title: Text('ローカルサーバーに保存'),
                 leading: Radio(
-                  value: false,
-                  groupValue: storageProvider.useFirebaseStorage,
-                  onChanged: (bool? value){
-                    setState((){
-                      storageProvider.toggleStorage(value!);
-                      _savePreferences();
-                    });
-                    Navigator.of(context).pop();
+                  value: 'local_server',
+                  groupValue: storageProvider.selectedStorage,
+                  onChanged: (String? value) {
+                    if (value != null) _onStorageSelected(value);
+                  },
+                ),
+              ),
+              ListTile(
+                title: Text('自分の端末に保存'),
+                leading: Radio(
+                  value: 'device',
+                  groupValue: storageProvider.selectedStorage,
+                  onChanged: (String? value) {
+                    if (value != null) _onStorageSelected(value);
                   },
                 ),
               ),
@@ -804,6 +928,9 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   @override
   Widget build(BuildContext context) {
     final storageProvider = Provider.of<AppState>(context);
+    // サーバー管理インスタンス
+    final serverManager = Provider.of<LocalServerManager>(context);
+
     return Scaffold(
       // アプリ上部に表示されるタイトル
       appBar: AppBar(title: Text('FanPixSnap')),
@@ -825,12 +952,15 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
                   child: Text(' 保存先を選択 '),
                 ),
                 SizedBox(height: 15),
-                Text(storageProvider.useFirebaseStorage
-                  ? '現在の保存先：外部ストレージ'
-                  : '現在の保存先：ローカル',
-                  style: TextStyle(fontSize: 20),),
+                Text(
+                  '現在の保存先: ${storageProvider.selectedStorage == 'firebase' ? '外部ストレージサーバー' : storageProvider.selectedStorage == 'local_server' ? 'ローカルサーバー' : '自分の端末'}',
+                    style: TextStyle(fontSize: 20),),
+                SizedBox(height: 10),
+                if (!serverManager.isRunning && storageProvider.selectedStorage == 'device')
+                  Text('「ローカルサーバに設定」から\nローカルサーバを起動してください。',
+                    style: TextStyle(fontSize: 15),),
                 SizedBox(height: 30),
-                if (!storageProvider.useFirebaseStorage)
+                if (storageProvider.selectedStorage != 'firebase')
                 ElevatedButton(
                   onPressed: () {
                     Navigator.push(
@@ -841,7 +971,7 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
                   child: Text(' ローカルサーバに設定 '),
                 ),
                 SizedBox(height: 30),
-                if (!storageProvider.useFirebaseStorage)
+                if (storageProvider.selectedStorage == 'local_server')
                 ElevatedButton(
                   onPressed: () {
                     Navigator.push(

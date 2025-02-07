@@ -7,6 +7,9 @@ import '../services/local_client_manager.dart';
 
 // ログ画面を表示するウィジェット
 class LogScreen extends StatelessWidget {
+  // ログの最大表示数
+  final int maxLogCount = 100;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -20,28 +23,32 @@ class LogScreen extends StatelessWidget {
             ...errState.logs.map((log) => "ErrSend: $log"),
           ];
 
+          // ログ数が最大数を超えていたら制限する
+          final limitedServerLogs = serverManager.logs.take(maxLogCount).toList();
+          final limitedCombinedLogs = combinedLogs.take(maxLogCount).toList();
+
           return Column(
             children: [
-              // サーバーのログを表示
+              // サーバーのログを表示（最大数を制限）
               Expanded(
                 child: ListView.builder(
-                  itemCount: serverManager.logs.length,
+                  itemCount: limitedServerLogs.length,
                   itemBuilder: (context, index) {
                     return ListTile(
-                      title: Text("Server: ${serverManager.logs[index]}"),
+                      title: SelectableText("Server: ${limitedServerLogs[index]}"),
                     );
                   },
                 ),
               ),
               Divider(),
               SizedBox(height: 20),
-              // クライアントとカメラのログを統合して表示
+              // クライアントとカメラのログを統合して表示（最大数を制限）
               Expanded(
                 child: ListView.builder(
-                  itemCount: combinedLogs.length,
+                  itemCount: limitedCombinedLogs.length,
                   itemBuilder: (context, index) {
                     return ListTile(
-                      title: Text(combinedLogs[index]),
+                      title: SelectableText(limitedCombinedLogs[index]),
                     );
                   },
                 ),

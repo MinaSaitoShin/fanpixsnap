@@ -35,10 +35,12 @@ class LocalServerManager extends ChangeNotifier {
   // ネットワーク接続監視用タイマー
   Timer? _networkMonitorTimer;
 
+  late bool _stopServerFlg = false;
+
   // ログを追加するメソッド
   void _addLog(String message) {
     // ログにタイムスタンプを追加
-    final logMessage = "[${DateTime.now()}] $message";
+    final logMessage = "[${DateTime.now().toLocal()}] $message";
     _logs.add(logMessage);
     // UIを更新
     notifyListeners();
@@ -47,11 +49,8 @@ class LocalServerManager extends ChangeNotifier {
   // ネットワーク監視を開始するメソッド
   void startNetworkMonitor() {
     _networkMonitorTimer = Timer.periodic(Duration(seconds: 5), (timer) async {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      final ipAddress = await getLocalIpAddress();
-      _addLog('ネットワーク監視内のgetLocalIpAddress値:$ipAddress');
-      _addLog('ネットワーク監視内のconnectivityResult値:$connectivityResult');
-      if (connectivityResult == ConnectivityResult.wifi && _getIpAddress) {
+      var connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult.toString() ==  '[ConnectivityResult.wifi]' && _getIpAddress && !_stopServerFlg) {
         if (!_isRunning) {
           _addLog('Wi-Fi接続を検出、サーバーを起動します');
           startServer();
@@ -83,7 +82,7 @@ class LocalServerManager extends ChangeNotifier {
       // サーバーをIPv4の任意のアドレスでバインド
       _server = await HttpServer.bind(InternetAddress.anyIPv4, _serverPort);
       // サーバー起動成功メッセージ
-      _addLog("サーバーが起動しました: $_serverPort");
+      _addLog("サーバーが起動しました");
       _isRunning = true;
       // サーバー起動後にUIを更新
       notifyListeners();
@@ -111,11 +110,13 @@ class LocalServerManager extends ChangeNotifier {
       }, onDone: () {
         _addLog("接続が切断されました");
         _isRunning = false;
+        notifyListeners();
         // 接続が切れたらサーバーを停止
         stopServer();
       }, onError: (error) {
         _addLog("接続エラー: $error");
         _isRunning = false;
+        notifyListeners();
         // 接続が切れたらサーバーを停止
         stopServer();
       });
@@ -188,13 +189,13 @@ class LocalServerManager extends ChangeNotifier {
       // Androidの場合、特定のディレクトリに保存
       if (Platform.isAndroid) {
         final directory = Directory('/storage/emulated/0/Pictures/fanpixsnap');
-        final filePath = '${directory.path}/received_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final filePath = '${directory.path}/received_image_${DateTime.now().toLocal().millisecondsSinceEpoch}.jpg';
         file = File(filePath);
       }
       // iOSの場合、アプリのドキュメントディレクトリに保存
       else if (Platform.isIOS) {
         final directory = await getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/received_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final filePath = '${directory.path}/received_image_${DateTime.now().toLocal().millisecondsSinceEpoch}.jpg';
         file = File(filePath);
       } else {
         throw Exception("Unsupported platform");
@@ -212,9 +213,28 @@ class LocalServerManager extends ChangeNotifier {
     }
   }
 
+  bool isUrlExpired(String timestampStr, int expiresIn) {
+    final timestamp = int.parse(timestampStr);
+    final currentTime = DateTime.now().toLocal().millisecondsSinceEpoch;
+    return currentTime - timestamp > expiresIn;
+  }
+
   // 画像取得リクエストを処理するメソッド
   Future<void> _handleImageRequest(HttpRequest request) async {
     try {
+      // URLの期限が切れているか確認
+      final timestampStr = request.uri.queryParameters['timestamp'];
+      final expiresIn = int.parse(request.uri.queryParameters['expiresIn'] ?? '0');
+      final expired = timestampStr != null && isUrlExpired(timestampStr, expiresIn);
+
+      if(expired) {
+        request.response
+          ..statusCode = HttpStatus.notFound
+          ..write('URLの期限切れ')
+          ..close();
+        return;
+      }
+
       // クエリパラメータからファイル名を取得
       final accessKey = request.uri.queryParameters['file'];
 
@@ -222,7 +242,7 @@ class LocalServerManager extends ChangeNotifier {
       if (accessKey == null) {
         request.response
           ..statusCode = HttpStatus.badRequest
-          ..write('Access Key is missing')
+          ..write('アクセスキーが存在しません')
           ..close();
         return;
       }
@@ -257,7 +277,7 @@ class LocalServerManager extends ChangeNotifier {
       if (fileToSend == null) {
         request.response
           ..statusCode = HttpStatus.notFound
-          ..write('File not found')
+          ..write('ファイルが見つかりません')
           ..close();
         return;
       }
@@ -280,8 +300,10 @@ class LocalServerManager extends ChangeNotifier {
   // サーバーを停止するメソッド
   Future<void> stopServer() async {
     if (_server != null) {
+      _stopServerFlg = true;
       // サーバーを停止
       _isRunning = false;
+      notifyListeners();
       await _server!.close();
       _server = null;
       // ネットワーク監視を停止
@@ -300,19 +322,28 @@ class LocalServerManager extends ChangeNotifier {
 
   // ローカルIPアドレスを取得するメソッド
   Future<String> getLocalIpAddress() async {
-    for (var interface in await NetworkInterface.list()) {
-      for (var addr in interface.addresses) {
-        if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
-          _getIpAddress = true;
-          _addLog("ローカルIPアドレス：$addr.address");
-          notifyListeners();
-          // IPv4アドレスを返す
-          return addr.address;
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult.toString() == '[ConnectivityResult.wifi]') {
+      for (var interface in await NetworkInterface.list()) {
+        if (interface.name.toLowerCase().contains('wlan') ||
+            interface.name.toLowerCase().contains('wifi')) {
+          for (var addr in interface.addresses) {
+            if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
+              _getIpAddress = true;
+              _addLog("ローカルIPアドレス：$addr.address");
+              notifyListeners();
+              // IPv4アドレスを返す
+              return addr.address;
+            }
+          }
         }
       }
+    } else {
+      _addLog('Wifiに接続されていません:$connectivityResult');
     }
     _getIpAddress = false;
     notifyListeners();
+    _addLog('IPアドレスを取得できません');
     return 'IPアドレスを取得できません';
   }
 }

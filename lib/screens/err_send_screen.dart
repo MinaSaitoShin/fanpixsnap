@@ -1,12 +1,15 @@
 import 'dart:io';
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:fan_pix_snap/screens/qr_code_screen.dart';
+import 'package:fan_pix_snap/screens/storage_qr_code_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/app_state.dart';
 import '../services/firebase_service.dart';
@@ -15,12 +18,13 @@ import '../services/firebase_service.dart';
 class ErrSendScreenState extends ChangeNotifier {
   // ログを保持するリスト
   final List<String> _logs = [];
+
   // ログリストを取得するゲッター
   List<String> get logs => _logs;
 
   // ログを追加するメソッド
   void addLog(String message) {
-    final logMessage = "[${DateTime.now()}] $message";
+    final logMessage = "[${DateTime.now().toLocal()}] $message";
     _logs.add(logMessage);
   }
 }
@@ -32,15 +36,39 @@ class ErrSendScreen extends StatefulWidget {
 
 class _ErrSendScreenState extends State<ErrSendScreen> {
   List<File> _imageFiles = [];
+
   // 選択された画像リスト
   List<File> _selectedImages = [];
   bool _isLoading = false;
 
+  static DateTime? _lastCheckedTime;
+  static bool? _lastOnlineStatus;
+  static const Duration cacheDuration = Duration(seconds: 30); // キャッシュ時間
+
+  // 接続しているデバイスの情報
+  String? _connectedDevice;
   @override
   void initState() {
     super.initState();
+    // 画面起動時にユーザ設定値をロードする
+    _loadPreferences();
     // 画面起動時に画像をロード
     _loadImages();
+  }
+
+  // ユーザー設定をロード（保存先設定・接続デバイス情報）
+  Future<void> _loadPreferences() async {
+    final storageProvider = Provider.of<AppState>(context, listen: false);
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    // **保存先の取得**（デフォルトは "firebase"）
+    String storedValue = prefs.getString('selectedStorage') ?? "firebase";
+    storageProvider.setSelectedStorage(storedValue);
+    // **接続デバイス情報の取得**
+    setState(() {
+      _connectedDevice = prefs.getString('connectedDevice');
+    });
+    // 設定を即時反映
+    storageProvider.notifyListeners();
   }
 
   // 画像ファイルをロードするメソッド
@@ -50,23 +78,33 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
       if (Platform.isAndroid) {
         final dirPath = Directory('/storage/emulated/0/Pictures/fanpixsnaperr');
         if (await dirPath.exists()) {
-          images = dirPath
-              .listSync()
-              .whereType<File>()
-              .where((item) => item.path.endsWith(".jpg"))
-              .toList()
-            ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+          await for (var entity in dirPath.list()) {
+            if (entity is File && (entity.path.toLowerCase().endsWith(".jpg") || entity.path.toLowerCase().endsWith(".jpeg"))) {
+              images.add(entity);
+            }
+          }
+          // ソート処理（非同期）
+          images.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
         }
       } else if (Platform.isIOS) {
         final directory = await getApplicationDocumentsDirectory();
         final dirPath = Directory('${directory.path}/fanpixsnaperr');
+        // if (await dirPath.exists()) {
+        //   images = dirPath
+        //       .listSync()
+        //       .whereType<File>()
+        //       .where((item) => item.path.endsWith(".jpg"))
+        //       .toList()
+        //     ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+        // }
         if (await dirPath.exists()) {
-          images = dirPath
-              .listSync()
-              .whereType<File>()
-              .where((item) => item.path.endsWith(".jpg"))
-              .toList()
-            ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+          await for (var entity in dirPath.list()) {
+            if (entity is File && (entity.path.toLowerCase().endsWith(".jpg") || entity.path.toLowerCase().endsWith(".jpeg"))) {
+              images.add(entity);
+            }
+          }
+          // ソート処理（非同期）
+          images.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
         }
       }
       setState(() {
@@ -80,62 +118,107 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
     }
   }
 
+  Future<File> resizeImage(File file) async {
+    final bytes = await file.readAsBytes();
+    img.Image? image = img.decodeImage(bytes);
+    if (image == null) return file;
+
+    img.Image resized = img.copyResize(image, width: 800); // 幅800pxにリサイズ
+    final resizedFile = File(file.path)
+      ..writeAsBytesSync(img.encodeJpg(resized, quality: 85)); // JPEG圧縮率85%
+
+    return resizedFile;
+  }
+
   Future<void> _sendErrImage(List<File> selectedImages) async {
     if (_selectedImages.isEmpty) {
       // 画像が選択されていない場合
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('画像を選択してください')),
       );
+      setState(() {
+        // ロード状態の設定（ロード中）
+        _isLoading = true;
+      });
       return;
     }
     // FirebaseStorageの場合、選択画像が1枚のみか確認
-    if (Provider.of<AppState>(context, listen: false).useFirebaseStorage &&
+    if (Provider.of<AppState>(context, listen: false).selectedStorage == "firebase" &&
         _selectedImages.length != 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('外部ストレージへの保存する場合は、1枚ずつ選択してください。')),
+        SnackBar(content: Text('外部ストレージへ保存をする場合は、1枚ずつ選択してください。')),
       );
+      setState(() {
+        // ロード状態の設定（ロード中）
+        _isLoading = true;
+      });
       return;
     }
 
     try {
       final storageProvider = Provider.of<AppState>(context, listen: false);
+      List<Uint8List> imageList = [];
       for (var imageFile in _selectedImages) {
         Uint8List imageData = await imageFile.readAsBytes();
-        String result;
-        if (storageProvider.useFirebaseStorage) {
-          result = await FirebaseService.uploadImage(imageFile);
-          if (result.isNotEmpty) {
-            // アップロードが成功した場合、QRコード表示画面へ遷移
-            Future.microtask(() {
-              Provider.of<ErrSendScreenState>(context, listen: false)
-                  .addLog('ストレージへ保存: $result');
-            });
-            Navigator.push(
+        File resizedImageFile = await resizeImage(imageFile);
+
+        //String result;
+
+        if(storageProvider.selectedStorage == 'firebase') {
+          // result = await FirebaseService.uploadImage(imageFile);
+          // if (result.isNotEmpty) {
+          //   // アップロードが成功した場合、QRコード表示画面へ遷移
+          //   Future.microtask(() {
+          //     Provider.of<ErrSendScreenState>(context, listen: false)
+          //         .addLog('外部ストレージへ保存: $result');
+          //   });
+          bool uploadSuccess = await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => QRCodeScreen(imageUrl: result),
+                //builder: (context) => QRCodeScreen(imageUrl: result),
+                builder: (context) => StorageQRCodeScreen(imageFuture: FirebaseService.uploadImage(resizedImageFile)),
+
               ),
             );
+          // } else {
+          if (!uploadSuccess) {
+            Future.microtask(() {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    content: Text('保存に失敗しました。ネットワーク状態を確認後再度送信してください。'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          // OKボタンが押されたときにダイアログを閉じる
+                          Navigator.of(context).pop();
+                        },
+                        child: Text('OK'),
+                      ),
+                    ],
+                  );
+                },
+              );
+              Provider.of<ErrSendScreenState>(context, listen: false)
+                  .addLog('エラー画像の保存失敗');
+            });
           }
         } else {
-          result = await _sendImageToLocalServer(imageData);
-        }
-        if (result.isNotEmpty) {
-          Future.microtask(() {
-            Provider.of<ErrSendScreenState>(context, listen: false)
-                .addLog('エラー画像の保存成功: $result');
-          });
-        } else {
-          Future.microtask(() {
-            Provider.of<ErrSendScreenState>(context, listen: false)
-                .addLog('エラー画像の保存失敗');
-          });
+          imageList.add(imageData);
         }
       }
+
+      if (imageList.isNotEmpty) {
+        await _sendImageToLocalServer(imageList);
+      }
+
       setState(() {
         _isLoading = false;
-        _selectedImages.clear(); // 送信後、選択リストをクリア
+        // 送信後、選択リストをクリア
+        _selectedImages.clear();
       });
+
     } catch (e) {
       Future.microtask(() {
         Provider.of<ErrSendScreenState>(context, listen: false)
@@ -144,86 +227,59 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
     }
   }
 
-  Future<String> _sendImageToLocalServer(Uint8List editedImageData) async {
-    try {
-      final ipAddress = Provider.of<AppState>(context, listen: false).ipAddress;
-      final port = Provider.of<AppState>(context, listen: false).port;
-      final Uri uri = Uri.parse('http://$ipAddress:$port/upload');
+  Future<void> _sendImageToLocalServer(List<Uint8List> images) async {
+    bool allSuccess = true;
 
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/octet-stream'},
-        body: editedImageData,
-      ).timeout(Duration(seconds: 30));
+    final ipAddress = Provider.of<AppState>(context, listen: false).ipAddress;
+    final port = Provider.of<AppState>(context, listen: false).port;
+    final Uri uri = Uri.parse('http://$ipAddress:$port/upload');
 
-      if (response.statusCode == 200) {
-        showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              content: Text('ローカルサーバへ送信しました。'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    // OKボタンが押されたときにダイアログを閉じる
-                    Navigator.of(context).pop();
-                  },
-                  child: Text('OK'),
-                ),
-              ],
-            );
-          },
-        );
-        return response.body;
-      } else {
-        showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              content: Text('ローカルサーバへの保存に失敗しました。'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    // OKボタンが押されたときにダイアログを閉じる
-                    Navigator.of(context).pop();
-                  },
-                  child: Text('OK'),
-                ),
-              ],
-            );
-          },
-        );
-        Future.microtask(() {
-          Provider.of<ErrSendScreenState>(context, listen: false)
-              .addLog('ローカルサーバへの保存失敗');
-        });
-        return '';
+    for (var imageData in images) {
+      try {
+        final response = await http.post(
+          uri,
+          headers: {'Content-Type': 'application/octet-stream'},
+          body: imageData,
+        ).timeout(Duration(seconds: 30));
+
+        if (response.statusCode != 200) {
+          allSuccess = false;
+        }
+      } catch (e) {
+        allSuccess = false;
       }
-    } catch (e) {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            content: Text('ローカルサーバへの保存に失敗しました。'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  // OKボタンが押されたときにダイアログを閉じる
-                  Navigator.of(context).pop();
-                },
-                child: Text('OK'),
-              ),
-            ],
-          );
-        },
-      );
+    }
+
+    // すべての画像送信が完了した後に、一度だけメッセージを表示
+    if (allSuccess) {
+      _showMessage('ローカルサーバへ送信しました。');
+    } else {
+      _showMessage('ローカルサーバへの保存に失敗しました。');
       Future.microtask(() {
         Provider.of<ErrSendScreenState>(context, listen: false)
             .addLog('ローカルサーバへの保存失敗');
       });
-      return '';
     }
   }
+
+// メッセージ表示用の関数を作成
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );  }
 
   @override
   Widget build(BuildContext context) {
@@ -247,10 +303,10 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
                         onChanged: (bool? selected) {
                           setState(() {
                             if (selected == true) {
-                              if (Provider.of<AppState>(context, listen: false).useFirebaseStorage &&
+                              if (Provider.of<AppState>(context, listen: false).selectedStorage == "firebase" &&
                                   _selectedImages.length >= 1) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('FirebaseStorageには1枚のみ選択できます')),
+                                  SnackBar(content: Text('外部ストレージへ保存をする場合は、1枚ずつ選択してください。')),
                                 );
                               } else {
                                 _selectedImages.add(file);
@@ -266,10 +322,12 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
                 ),
           ),
           ElevatedButton(
-            onPressed: _isLoading || (_selectedImages.length != 1)
+            onPressed: _isLoading ||
+                (_selectedImages.length != 1 &&
+                    Provider.of<AppState>(context, listen: false).selectedStorage == "firebase")
                 ? null
                 : () async {
-              await _sendErrImage(_selectedImages);  // この部分を修正
+              await _sendErrImage(_selectedImages);
             },
             child: _isLoading ? CircularProgressIndicator() : Text('送信'),
           ),

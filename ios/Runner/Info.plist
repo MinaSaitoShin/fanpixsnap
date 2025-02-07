@@ -51,15 +51,15 @@
     <string>カメラへのアクセスが必要です。</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>フォトライブラリに画像を保存するためのアクセス権が必要です。</string>
-    <key>NSDocumentsFolderUsageDescription</key>
-    <string>ストレージにアクセスするための権限が必要です。</string>
-    <key>MinimumOSVersion</key>
-    <string>13.0</string>
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>Bluetoothを利用するための説明</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>位置情報を使用する理由の説明</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>$(PRODUCT_NAME) Microphone Usage!</string>
+    <key>FirebaseAppCheck</key>
+    <dict>
+      <key>AppCheck</key>
+      <dict>
+        <key>DeviceCheck</key>
+        <true/>
+      </dict>
+    </dict>
 </dict>
 </plist>

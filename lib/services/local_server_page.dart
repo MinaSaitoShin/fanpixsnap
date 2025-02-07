@@ -22,6 +22,11 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
   // サーバー管理用オブジェクト
   late LocalServerManager serverManager;
 
+  // サーバ停止フラグ
+  bool _stopServerFlg = false;
+
+  bool get stopServerFlg => _stopServerFlg;
+
   @override
   void initState() {
     super.initState();
@@ -93,8 +98,10 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
     _updateServerStatus();
     // IPアドレスを取得
     _fetchLocalIpAddress();
-    // // サーバー起動後にQRコードを更新
-    // _generateQrData(_localIpAddress);
+    // サーバー停止フラグ更新
+    _stopServerFlg = false;
+    // サーバー起動後にQRコードを更新
+     _generateQrData(_localIpAddress);
   }
 
   // サーバーを停止
@@ -103,6 +110,8 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
     await serverManager.stopServer();
     // サーバー状態を更新
     _updateServerStatus();
+    // サーバー停止フラグ更新
+    _stopServerFlg = true;
     // サーバー停止時はQRコードを非表示にする
     setState(() {
       // サーバー停止時にはQRコードを非表示にする
@@ -161,7 +170,13 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 16),
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 20),
+                  Text(
+                    "サーバー情報: $_qrData",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  SizedBox(height: 20),
                   QrImageView(
                     // QRコードに表示するデータ
                     data: _qrData,
@@ -169,12 +184,6 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
                     version: QrVersions.auto,
                     // QRコードのサイズ
                     size: 200.0,
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    "サーバー情報: $_qrData",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
                   ),
                 ],
               ],

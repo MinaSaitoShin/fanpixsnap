@@ -21,7 +21,7 @@ class LocalClientManager extends ChangeNotifier{
 
   // ログを追加するメソッド
   void _addLog(String message) {
-    final logMessage = "[${DateTime.now()}] $message";
+    final logMessage = "[${DateTime.now().toLocal()}] $message";
     _logs.add(logMessage);
   }
 
