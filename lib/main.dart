@@ -3,14 +3,17 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:fan_pix_snap/screens/send_pic_screen.dart';
 import 'package:fan_pix_snap/services/local_server_manager.dart';
 import 'package:fan_pix_snap/services/local_client_manager.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
+//import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+//import 'package:firebase_core/firebase_core.dart';
+//import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'screens/signup_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/log_screen.dart';
 import 'screens/err_send_screen.dart';
@@ -20,23 +23,62 @@ void main() async {
   // Flutterのバインディングを初期化
   WidgetsFlutterBinding.ensureInitialized();
 
+  // .envファイルのロード
+  await dotenv.load(fileName: ".env");
+  // SUPABASEのキーを設定
+  String supabaseKey = dotenv.env['SUPABASE_KEY'] ?? 'default_key_here';
+  String supabaseUrl = dotenv.env['SUPABASE_URL'] ?? 'default_url_here';
+
+  print('supabaseKeyの確認$supabaseKey');
+  print('supabaseUrlの確認$supabaseUrl');
   // Firebaseを初期化する処理
-  await Firebase.initializeApp();
+  // await Firebase.initializeApp();
+  // Supabaseを初期化する処理
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseKey,
+    authOptions: FlutterAuthClientOptions(
+      autoRefreshToken: true,
+      authFlowType: AuthFlowType.pkce, // 必要に応じて設定
+    ),
+  );
 
+//  final supabase = Supabase.instance.client;
+//  await supabase.auth.signInAnonymously;
+//  final response = await Supabase.instance.client.auth.signInAnonymously();
+
+// 既にログイン済みか確認（未ログインなら匿名ログイン）
+//   if (supabase.auth.currentSession == null) {
+//     // Anonymousログインができない場合は、サインアップで新規作成
+//     final response = await supabase.auth.signUp(
+//         email: 'user@example.com',
+//         password: 'password123',
+//     );
+//
+//     // サインアップ成功時の処理
+//     if (response.error == null) {
+//       print("サインアップ成功");
+//     } else {
+//       print("サインアップ失敗: ${response.error?.message}");
+//     }
+//   } else {
+//     print("既にログイン済み");
+//   }
+  
   // Firebase App Checkの初期化
-  try {
-    await FirebaseAppCheck.instance.activate(
-      // Android：開発中は debug、公開時は playIntegrityを選択する
-      androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      // IOS
-      appleProvider: AppleProvider.deviceCheck,
-    );
-  } catch (e) {
-      print('App Checkの初期化に失敗しました: $e');
-  }
+  // try {
+  //   await FirebaseAppCheck.instance.activate(
+  //     // Android：開発中は debug、公開時は playIntegrityを選択する
+  //     androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+  //     // IOS
+  //     appleProvider: AppleProvider.deviceCheck,
+  //   );
+  // } catch (e) {
+  //     print('App Checkの初期化に失敗しました: $e');
+  // }
 
-  // Firebase Authentication のセットアップ（匿名ログイン）
-  await signInAnonymously();
+  // // Firebase Authentication のセットアップ（匿名ログイン）
+  // await signInAnonymously();
 
   // アプリを起動。複数のProviderを設定して状態管理を提供
   runApp(
@@ -59,16 +101,20 @@ void main() async {
   );
 }
 
-
-// Firebase Authentication（匿名ログイン）
-Future<void> signInAnonymously() async {
-  try {
-    UserCredential userCredential = await FirebaseAuth.instance.signInAnonymously();
-    print("ログイン成功: ${userCredential.user?.uid}");
-  } catch (e) {
-    print("匿名ログイン失敗: $e");
-  }
+extension on AuthResponse {
+  get error => null;
 }
+
+
+// // Firebase Authentication（匿名ログイン）
+// Future<void> signInAnonymously() async {
+//   try {
+//     UserCredential userCredential = await FirebaseAuth.instance.signInAnonymously();
+//     print("ログイン成功: ${userCredential.user?.uid}");
+//   } catch (e) {
+//     print("匿名ログイン失敗: $e");
+//   }
+// }
 
 // StatelessWidgetを継承。アプリのテーマやホームを設定
 class MyApp extends StatelessWidget {
@@ -89,8 +135,24 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // 最初に表示される画面をMainScreenに設定
-      home: MainScreen(),
+      home: AuthCheck(), // ユーザーの状態を確認
+      routes: {
+        '/home': (context) => MainScreen(), // メイン画面
+      },
     );
+  }
+}
+// ユーザーがログイン済みかチェックする画面
+class AuthCheck extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user != null) {
+      return MainScreen(); // ログイン済みならメイン画面へ
+    } else {
+      return SignUpScreen(); // 未ログインなら認証画面へ
+    }
   }
 }
 
@@ -112,7 +174,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _loadPreferences();
     // アプリが起動したときにトークンを取得
-    _getAppCheckToken();
+    // _getAppCheckToken();
   }
 
   // ユーザー設定をロード（保存先設定）
@@ -124,21 +186,26 @@ class _MainScreenState extends State<MainScreen> {
     storageProvider.setSelectedStorage(storedValue);
   }
 
-  // トークンを取得する関数
-  Future<void> _getAppCheckToken() async {
-    try {
-      String? token = await FirebaseAppCheck.instance.getToken();
-      setState(() {
-        _token = token;
-      });
-    } catch (e) {
-      print("Error getting App Check token: $e");
-      setState(() {
-        _e = e.toString();
-        _token = "Failed to get token";
-      });
-    }
+  Future<void> _signOut() async {
+    await Supabase.instance.client.auth.signOut();
+    Navigator.pushReplacementNamed(context, '/'); // ログアウト後、認証画面へ
   }
+
+  // トークンを取得する関数
+  // Future<void> _getAppCheckToken() async {
+  //   try {
+  //     String? token = await FirebaseAppCheck.instance.getToken();
+  //     setState(() {
+  //       _token = token;
+  //     });
+  //   } catch (e) {
+  //     print("Error getting App Check token: $e");
+  //     setState(() {
+  //       _e = e.toString();
+  //       _token = "Failed to get token";
+  //     });
+  //   }
+  // }
 
 // // カメラとストレージの権限をチェックFuture<bool> _checkPermissions() async {
 // //   bool cameraGranted = false;
@@ -335,7 +402,7 @@ class _MainScreenState extends State<MainScreen> {
 //       _showPermissionDialog();
 //     }
 //   }
-  /// **カメラとストレージの権限を確認**
+  // カメラとストレージの権限を確認
   Future<bool> _checkPermissions() async {
     bool cameraGranted = false;
     bool storageGranted = false;
@@ -366,7 +433,7 @@ class _MainScreenState extends State<MainScreen> {
     return cameraGranted && storageGranted;
   }
 
-  /// **パーミッションの確認と必要なら設定画面を開く**
+  // パーミッションの確認と必要なら設定画面を開く
   Future<void> _requestPermissionsAndProceed(VoidCallback onSuccess) async {
     bool permissionGranted = await _checkPermissions();
     if (permissionGranted) {
@@ -376,7 +443,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  /// **権限リクエストのダイアログ**
+  // 権限リクエストのダイアログ
   void _showPermissionDialog() {
     if (!mounted || _isDialogOpen) return;
     _isDialogOpen = true;
@@ -452,23 +519,27 @@ class _MainScreenState extends State<MainScreen> {
                 },
                 child: Text(' ログを表示 '),
               ),
-              // トークン表示部分
-              Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  _token != null ? 'App Check Token: $_token:' : 'Loading token...',
-                  style: TextStyle(fontSize: 16, color: Colors.black),
-                ),
+              IconButton(
+                icon: Icon(Icons.logout),
+                onPressed: _signOut,
               ),
-              // エラー表示部分
-              if (_e != null)
-                Padding(
-                  padding: EdgeInsets.all(16.0), // 余白を追加
-                  child: Text(
-                    'エラー: $_token:$_e',  // エラー内容を表示
-                    style: TextStyle(fontSize: 16, color: Colors.red),
-                  ),
-                ),
+              // トークン表示部分
+              // Padding(
+              //   padding: EdgeInsets.all(16.0),
+              //   child: Text(
+              //     _token != null ? 'App Check Token: $_token:' : 'Loading token...',
+              //     style: TextStyle(fontSize: 16, color: Colors.black),
+              //   ),
+              // ),
+              // // エラー表示部分
+              // if (_e != null)
+              //   Padding(
+              //     padding: EdgeInsets.all(16.0), // 余白を追加
+              //     child: Text(
+              //       'エラー: $_token:$_e',  // エラー内容を表示
+              //       style: TextStyle(fontSize: 16, color: Colors.red),
+              //     ),
+              //   ),
             ],
           ),
         ),

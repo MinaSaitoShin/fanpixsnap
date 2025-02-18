@@ -1,0 +1,111 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class EmailChangeVerificationScreen extends StatefulWidget {
+  final String email;
+
+  EmailChangeVerificationScreen({required this.email});
+
+  @override
+  _EmailChangeVerificationScreenState createState() => _EmailChangeVerificationScreenState();
+}
+
+class _EmailChangeVerificationScreenState extends State<EmailChangeVerificationScreen> {
+  final TextEditingController _tokenController = TextEditingController();
+  bool _isLoading = false;
+  String _errorMessage = '';
+
+  final supabase = Supabase.instance.client;
+
+  // 認証コードを検証してメール変更を完了
+  Future<void> _verifyEmailChange() async {
+    if (_tokenController.text.isEmpty) {
+      setState(() => _errorMessage = "認証コードを入力してください");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final token = _tokenController.text.trim();
+
+    try {
+      final response = await supabase.auth.verifyOTP(
+        // メールアドレス変更用のOTP
+        type: OtpType.emailChange,
+        email: widget.email,
+        token: token,
+      );
+
+      if (response.user != null) {
+        await supabase.auth.refreshSession(); // セッションを更新
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("メールアドレスが変更されました")),
+        );
+
+        Navigator.popUntil(context, ModalRoute.withName('/home'));
+      } else {
+        setState(() => _errorMessage = "認証に失敗しました。正しいコードを入力してください。");
+      }
+    } catch (e) {
+      print("エラー: ${e.toString()}");
+      setState(() => _errorMessage = "エラーが発生しました。もう一度お試しください。");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resendOTP() async {
+    try {
+      final response = await supabase.auth.resend(
+        type: OtpType.emailChange,
+        email: widget.email,
+      );
+
+      if (response.error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("認証コードを再送しました。最新のコードを入力してください。")),
+        );
+      } else {
+        print("エラー: ${response.error?.message}");
+      }
+    } catch (e) {
+      print("再送エラー: ${e.toString()}");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("認証コードの入力")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text("メールで受信した6桁の認証コードを入力してください"),
+            TextField(
+              controller: _tokenController,
+              decoration: InputDecoration(labelText: "認証コード"),
+            ),
+            SizedBox(height: 20),
+            if (_errorMessage.isNotEmpty)
+              Text(_errorMessage, style: TextStyle(color: Colors.red)),
+            SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _verifyEmailChange,
+              child: Text("認証"),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _resendOTP,
+              child: Text("認証コード再送"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+extension on ResendResponse {
+  get error => null;
+}

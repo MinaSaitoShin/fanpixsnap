@@ -12,7 +12,8 @@ import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/app_state.dart';
-import '../services/firebase_service.dart';
+// import '../services/firebase_service.dart';
+import '../services/supabase_service.dart';
 
 // カメラ画面を管理するウィジェット
 class ErrSendScreenState extends ChangeNotifier {
@@ -176,7 +177,8 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
               context,
               MaterialPageRoute(
                 //builder: (context) => QRCodeScreen(imageUrl: result),
-                builder: (context) => StorageQRCodeScreen(imageFuture: FirebaseService.uploadImage(resizedImageFile)),
+                //builder: (context) => StorageQRCodeScreen(imageFuture: FirebaseService.uploadImage(resizedImageFile)),
+                builder: (context) => StorageQRCodeScreen(imageFuture: SupabaseService.uploadImage(resizedImageFile)),
 
               ),
             );

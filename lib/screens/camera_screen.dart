@@ -16,7 +16,8 @@ import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
-import '../services/firebase_service.dart';
+// import '../services/firebase_service.dart';
+ import '../services/supabase_service.dart';
 import '../services/local_server_page.dart';
 import '../services/local_client_page.dart';
 import '../services/local_server_manager.dart';
@@ -600,7 +601,8 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
           uploadSuccess = await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => StorageQRCodeScreen(imageFuture: FirebaseService.uploadImage(resizedImageFile)),
+                //builder: (context) => StorageQRCodeScreen(imageFuture: FirebaseService.uploadImage(resizedImageFile)),
+                builder: (context) => StorageQRCodeScreen(imageFuture: SupabaseService.uploadImage(resizedImageFile)),
               ),
             );
           Future.microtask(() {
