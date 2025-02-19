@@ -559,37 +559,31 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   //   }
   // }
   Future<String> _saveImageToLocalStorageIOS(Uint8List imageBytes, BuildContext context) async {
-    final String filename = 'edited_image_${DateTime.now()
-        .toLocal()
-        .toIso8601String()
-        .replaceAll(':', '-')}.jpg';
+    final String filename = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
     final storageProvider = Provider.of<AppState>(context, listen: false);
-    String folderName = "";
+    String folderName = storageProvider.selectedStorage == 'device' ? "fanpixsnap" : "fanpixsnaperr";
 
-    if(storageProvider.selectedStorage == 'device'){
-      folderName = "fanpixsnap";
-    } else {
-      folderName = "fanpixsnaperr";
-    }
-
-    // **1. 写真ライブラリの権限をリクエスト**
+    // 写真ライブラリの権限をリクエスト
     final PermissionState ps = await PhotoManager.requestPermissionExtend();
     if (!ps.isAuth) {
       throw Exception("写真ライブラリへのアクセス権限がありません");
     }
 
-    // **2. 画像を指定したフォルダ（アルバム）に保存**
+    // アルバムを作成または取得
+    final album = await _getOrCreateAlbumIOS(folderName);
+
+    // 画像をアルバムに保存
     final AssetEntity? asset = await PhotoManager.editor.saveImage(
       imageBytes,
       filename: filename,
-      relativePath: folderName,
+      relativePath: album?.name,  // アルバム名を指定
     );
 
     if (asset == null) {
       throw Exception("写真ライブラリへの保存に失敗しました");
     }
 
-    // **3. 実際の画像ファイルのパスを取得**
+    // 保存された画像のパスを取得
     final File? savedFile = await asset.file;
     if (savedFile == null) {
       throw Exception("保存された画像のパスを取得できませんでした");
@@ -601,6 +595,21 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
         .addLog('ローカルストレージに画像が保存されました（iOS）：$filePath');
 
     return filePath;
+  }
+
+  // アルバムを作成または取得する関数
+  Future<AssetPathEntity?> _getOrCreateAlbumIOS(String folderName) async {
+    // アルバムの一覧を取得
+    final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(onlyAll: false);
+
+    // 既存のアルバムを検索
+    for (var album in albums) {
+      if (album.name == folderName) {
+        return album; // 見つかったらそのアルバムを返す
+      }
+    }
+    // 存在しない場合、新しく作成（PhotoManagerでアルバム作成が）
+    return await PhotoManager.editor.darwin.createAlbum(folderName);
   }
 
   Future<File> resizeImage(File file) async {
