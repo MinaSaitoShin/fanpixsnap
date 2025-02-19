@@ -559,9 +559,14 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   //   }
   // }
   Future<String> _saveImageToLocalStorageIOS(Uint8List imageBytes, BuildContext context) async {
-    final String filename = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
+    final String filename = 'edited_image_${DateTime.now()
+        .toLocal()
+        .toIso8601String()
+        .replaceAll(':', '-')}.jpg';
     final storageProvider = Provider.of<AppState>(context, listen: false);
-    String folderName = storageProvider.selectedStorage == 'device' ? "fanpixsnap" : "fanpixsnaperr";
+    String folderName = storageProvider.selectedStorage == 'device'
+        ? "fanpixsnap"
+        : "fanpixsnaperr";
 
     // 写真ライブラリの権限をリクエスト
     final PermissionState ps = await PhotoManager.requestPermissionExtend();
@@ -569,47 +574,21 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
       throw Exception("写真ライブラリへのアクセス権限がありません");
     }
 
-    // アルバムを作成または取得
-    final album = await _getOrCreateAlbumIOS(folderName);
+    // ローカルストレージに保存先のパスを設定
+    Directory appDocDir = await getApplicationDocumentsDirectory();
+    String folderPath = '${appDocDir.path}/$folderName';
+    await Directory(folderPath).create(recursive: true); // フォルダを作成
 
-    // 画像をアルバムに保存
-    final AssetEntity? asset = await PhotoManager.editor.saveImage(
-      imageBytes,
-      filename: filename,
-      relativePath: album?.name,  // アルバム名を指定
-    );
+    String filePath = '$folderPath/$filename';
 
-    if (asset == null) {
-      throw Exception("写真ライブラリへの保存に失敗しました");
-    }
-
-    // 保存された画像のパスを取得
-    final File? savedFile = await asset.file;
-    if (savedFile == null) {
-      throw Exception("保存された画像のパスを取得できませんでした");
-    }
-
-    final String filePath = savedFile.path;
+    // 画像をローカルストレージに保存
+    final File imageFile = File(filePath);
+    await imageFile.writeAsBytes(imageBytes);
 
     Provider.of<CameraScreenState>(context, listen: false)
         .addLog('ローカルストレージに画像が保存されました（iOS）：$filePath');
 
-    return filePath;
-  }
-
-  // アルバムを作成または取得する関数
-  Future<AssetPathEntity?> _getOrCreateAlbumIOS(String folderName) async {
-    // アルバムの一覧を取得
-    final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(onlyAll: false);
-
-    // 既存のアルバムを検索
-    for (var album in albums) {
-      if (album.name == folderName) {
-        return album; // 見つかったらそのアルバムを返す
-      }
-    }
-    // 存在しない場合、新しく作成（PhotoManagerでアルバム作成が）
-    return await PhotoManager.editor.darwin.createAlbum(folderName);
+    return filePath; // 保存されたファイルのパスを返す
   }
 
   Future<File> resizeImage(File file) async {
