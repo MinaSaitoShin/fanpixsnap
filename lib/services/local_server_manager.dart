@@ -268,7 +268,11 @@ class LocalServerManager extends ChangeNotifier {
         final files = dirPath.listSync().whereType<File>().toList();
         _addLog("画像保存先確認: ${files}");
         for (var file in files) {
-          if (file.uri.pathSegments.last == accessKey) {
+          _addLog("チェック中のファイル: ${file.uri.path}");
+          _addLog("アクセスキー: ${accessKey}");
+          _addLog("ファイルの後ろ: ${file.uri.pathSegments.last}");
+          if (Uri.decodeComponent(file.uri.pathSegments.last) == Uri.decodeComponent(accessKey)) {
+            _addLog("ファイル一致: ${file.uri.path}");
             fileToSend = file;
             break;
           }
