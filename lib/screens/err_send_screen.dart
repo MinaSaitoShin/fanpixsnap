@@ -88,8 +88,8 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
           images.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
         }
       } else if (Platform.isIOS) {
-        final directory = await getApplicationDocumentsDirectory();
-        final dirPath = Directory('${directory.path}/fanpixsnaperr');
+        final Directory directory = await getApplicationDocumentsDirectory();
+        final dirPath = Directory('${directory.path}/fanpixsnap');
         // if (await dirPath.exists()) {
         //   images = dirPath
         //       .listSync()

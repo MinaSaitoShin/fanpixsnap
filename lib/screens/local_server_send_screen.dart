@@ -51,9 +51,10 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
           print('ディレクトリが見つかりません: ${directory.path}');
         }
       } else if (Platform.isIOS) {
-        final directory = await getApplicationDocumentsDirectory();
-        if (await directory.exists()) {
-          images = directory
+        final Directory directory = await getApplicationDocumentsDirectory();
+        final dirPath = Directory('${directory.path}/fanpixsnap');
+        if (await dirPath.exists()) {
+          images = dirPath
               .listSync()
               .whereType<FileSystemEntity>()
               .where((item) => item.path.endsWith(".jpg"))
