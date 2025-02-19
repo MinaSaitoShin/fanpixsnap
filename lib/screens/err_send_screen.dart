@@ -89,7 +89,7 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
         }
       } else if (Platform.isIOS) {
         final Directory directory = await getApplicationDocumentsDirectory();
-        final dirPath = Directory('${directory.path}/fanpixsnap');
+        final dirPath = Directory('${directory.path}/fanpixsnaperr');
         // if (await dirPath.exists()) {
         //   images = dirPath
         //       .listSync()

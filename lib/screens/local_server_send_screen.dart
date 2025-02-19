@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
 import 'local_qr_code_screen.dart';
@@ -51,18 +52,19 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
           print('ディレクトリが見つかりません: ${directory.path}');
         }
       } else if (Platform.isIOS) {
-        final Directory directory = await getApplicationDocumentsDirectory();
-        final dirPath = Directory('${directory.path}/fanpixsnap');
-        if (await dirPath.exists()) {
-          images = dirPath
-              .listSync()
-              .whereType<FileSystemEntity>()
-              .where((item) => item.path.endsWith(".jpg"))
-              .map((item) => File(item.path))
-              .toList()
-            ..sort((a, b) =>
-                b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-        }
+        images = await _getImagesFromCustomAlbum("fanpixsnap");
+        // final Directory directory = await getApplicationDocumentsDirectory();
+        // final dirPath = Directory('${directory.path}/fanpixsnap');
+        // if (await dirPath.exists()) {
+        //   images = dirPath
+        //       .listSync()
+        //       .whereType<FileSystemEntity>()
+        //       .where((item) => item.path.endsWith(".jpg"))
+        //       .map((item) => File(item.path))
+        //       .toList()
+        //     ..sort((a, b) =>
+        //         b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+        // }
       }
       if (mounted) {
         setState(() {
@@ -74,6 +76,48 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
       print('エラー: $e');
     }
   }
+
+  Future<List<File>> _getImagesFromCustomAlbum(String albumName) async {
+    List<File> images = [];
+
+    // **1. 写真ライブラリの権限を確認**
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    if (!ps.isAuth) {
+      throw Exception("写真ライブラリへのアクセス権限がありません");
+    }
+
+    // **2. 指定したアルバム（フォルダ）を検索**
+    List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(type: RequestType.image);
+    AssetPathEntity? targetAlbum;
+
+    for (var album in albums) {
+      if (album.name == albumName) {
+        targetAlbum = album;
+        break;
+      }
+    }
+
+    if (targetAlbum == null) {
+      throw Exception("アルバム '$albumName' が見つかりませんでした");
+    }
+
+    // **3. アルバム内の画像を取得**
+    List<AssetEntity> media = await targetAlbum.getAssetListPaged(page: 0, size: 100);
+
+    // **4. 画像ファイルのパスを取得**
+    for (var asset in media) {
+      File? file = await asset.file;
+      if (file != null) {
+        images.add(file);
+      }
+    }
+
+    // **5. 画像を最新のものから並び替え**
+    images.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+
+    return images;
+  }
+
 
   void _generateQRCode(File imageFile) {
     if (mounted) {

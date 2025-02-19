@@ -559,59 +559,38 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   //   }
   // }
   Future<String> _saveImageToLocalStorageIOS(Uint8List imageBytes, BuildContext context) async {
-    final storageProvider = Provider.of<AppState>(context, listen: false);
-    final Directory directory = await getApplicationDocumentsDirectory();
-    final Directory dirPath;
-
-    if (storageProvider.selectedStorage == 'device') {
-      dirPath = Directory('${directory.path}/fanpixsnap');
-    } else {
-      dirPath = Directory('${directory.path}/fanpixsnaperr');
-    }
-
-    // 保存先が存在するか確認
-    try {
-      if (!await dirPath.exists()) {
-        await dirPath.create(recursive: true);
-      }
-    } catch (e) {
-      throw Exception("ディレクトリ作成に失敗しました: $e");
-    }
-
-    // ファイル名作成
     final String filename = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
-    final String filePath = '${dirPath.path}/$filename';
-    final File file = File(filePath);
+    final storageProvider = Provider.of<AppState>(context, listen: false);
+    String folderName = storageProvider.selectedStorage == 'device' ? "fanpixsnap" : "fanpixsnaperr";
 
-    try {
-      // ローカルストレージに画像を保存
-      await file.writeAsBytes(imageBytes);
-    } catch (e) {
-      throw Exception('ローカルストレージへの保存に失敗しました: $e');
+    // **1. 写真ライブラリの権限をリクエスト**
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    if (!ps.isAuth) {
+      throw Exception("写真ライブラリへのアクセス権限がありません");
     }
+
+    // **2. 画像を指定したフォルダ（アルバム）に保存**
+    final AssetEntity? asset = await PhotoManager.editor.saveImage(
+      imageBytes,
+      filename: filename,
+      relativePath: folderName, // ここでフォルダ名を指定すれば、自動でアルバムが作成される！
+    );
+
+    if (asset == null) {
+      throw Exception("写真ライブラリへの保存に失敗しました");
+    }
+
+    // **3. 実際の画像ファイルのパスを取得**
+    final File? savedFile = await asset.file;
+    if (savedFile == null) {
+      throw Exception("保存された画像のパスを取得できませんでした");
+    }
+
+    final String filePath = savedFile.path;
+
     Provider.of<CameraScreenState>(context, listen: false)
         .addLog('ローカルストレージに画像が保存されました（iOS）：$filePath');
-    return filePath;
 
-    // iOSの写真ライブラリへの保存処理
-    try {
-      // 権限をリクエスト
-      final PermissionState ps = await PhotoManager.requestPermissionExtend();
-      if (ps.isAuth) {
-        // 写真ライブラリに保存
-        final AssetEntity? asset = await PhotoManager.editor.saveImage(imageBytes, filename: filename);
-        if (asset != null) {
-          print('画像がフォトライブラリに保存されました：${asset.id}');
-          return asset.id;
-        } else {
-          throw Exception('フォトライブラリへの保存に失敗しました');
-        }
-      } else {
-        throw Exception('写真ライブラリへのアクセス権限がありません');
-      }
-    } catch (e) {
-      throw Exception('フォトライブラリへの保存に失敗しました: $e');
-    }
     return filePath;
   }
 
