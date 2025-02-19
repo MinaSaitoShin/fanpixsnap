@@ -80,7 +80,8 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
     if (mounted) {
       setState(() {
         _selectedImageFile = imageFile;
-        _accessKey = imageFile.uri.pathSegments.last;
+        // _accessKey = imageFile.uri.pathSegments.last;
+        _accessKey = imageFile.uri.path;
         _timer?.cancel();
       });
 
