@@ -195,7 +195,7 @@ class LocalServerManager extends ChangeNotifier {
       // iOSの場合、アプリのドキュメントディレクトリに保存
       else if (Platform.isIOS) {
         final directory = await getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/received_image_${DateTime.now().toLocal().millisecondsSinceEpoch}.jpg';
+        final filePath = '${directory.path}/fanpixsnap/received_image_${DateTime.now().toLocal().millisecondsSinceEpoch}.jpg';
         file = File(filePath);
       } else {
         throw Exception("Unsupported platform");
@@ -250,7 +250,7 @@ class LocalServerManager extends ChangeNotifier {
       // ファイル名が一致する画像ファイルをディレクトリから探す
       File? fileToSend;
 
-      // Androidの場合、特定のディレクトリに保存
+      // Androidの場合、特定のディレクトリから取得
       if (Platform.isAndroid) {
         final directory = Directory('/storage/emulated/0/Pictures/fanpixsnap');
         final files = directory.listSync().whereType<File>().toList();
@@ -261,10 +261,12 @@ class LocalServerManager extends ChangeNotifier {
           }
         }
       }
-      // iOSの場合、アプリのドキュメントディレクトリに保存
+      // iOSの場合、アプリのドキュメントディレクトリから取得
       else if (Platform.isIOS) {
         final directory = await getApplicationDocumentsDirectory();
-        final files = directory.listSync().whereType<File>().toList();
+        final dirPath = Directory('${directory.path}/fanpixsnap');
+        final files = dirPath.listSync().whereType<File>().toList();
+        _addLog("画像保存先確認: ${files}");
         for (var file in files) {
           if (file.uri.pathSegments.last == accessKey) {
             fileToSend = file;

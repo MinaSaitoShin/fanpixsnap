@@ -53,6 +53,7 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
       } else if (Platform.isIOS) {
         final Directory directory = await getApplicationDocumentsDirectory();
         final dirPath = Directory('${directory.path}/fanpixsnap');
+
         if (await dirPath.exists()) {
           images = dirPath
               .listSync()

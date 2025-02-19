@@ -587,8 +587,8 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
 
     Provider.of<CameraScreenState>(context, listen: false)
         .addLog('ローカルストレージに画像が保存されました（iOS）：$filePath');
-
-    return filePath; // 保存されたファイルのパスを返す
+    // 保存されたファイルのパスを返す
+    return filePath;
   }
 
   Future<File> resizeImage(File file) async {
