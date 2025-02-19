@@ -5,6 +5,7 @@ import 'package:fan_pix_snap/services/local_server_manager.dart';
 import 'package:fan_pix_snap/services/local_client_manager.dart';
 //import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 //import 'package:firebase_core/firebase_core.dart';
@@ -422,9 +423,29 @@ class _MainScreenState extends State<MainScreen> {
       storageGranted = storagePermission.isGranted;
 
     } else if (Platform.isIOS) {
+      //   PermissionStatus photosPermission = await Permission.photos.request();
+      //   cameraGranted = photosPermission.isGranted;
+      //   storageGranted = photosPermission.isGranted;
+      // }
+      final iosInfo = await DeviceInfoPlugin().iosInfo;
+      final int iosVersion = int.parse(iosInfo.systemVersion.split('.')[0]);
       PermissionStatus photosPermission = await Permission.photos.request();
-      cameraGranted = photosPermission.isGranted;
-      storageGranted = photosPermission.isGranted;
+
+      if (photosPermission.isGranted) {
+        // フルアクセスが許可された場合
+        cameraGranted = true;
+        storageGranted = true;
+      } else if (photosPermission.isLimited && iosVersion >= 14) {
+        // iOS 14 以降で「制限付きアクセス」の場合
+        storageGranted = true; // 一部の写真のみアクセス可能
+        cameraGranted = false; // カメラの利用は未許可の可能性
+        // ユーザーに設定変更を促す
+        Future.microtask(() => PhotoManager.openSetting());
+      } else {
+        // 許可されていない場合
+        cameraGranted = false;
+        storageGranted = false;
+      }
     }
 
     Provider.of<AppState>(context, listen: false)
