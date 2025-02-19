@@ -461,7 +461,7 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
       filePath = await _saveImageToLocalStorageAndroid(imageBytes);
     // IOS端末の場合
     } else if(Platform.isIOS) {
-      filePath = await _saveImageToLocalStorageIOS(imageBytes);
+      filePath = await _saveImageToLocalStorageIOS(imageBytes, context);
     } else {
       throw Exception('未対応のプラットフォームです');
     }
@@ -511,11 +511,58 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   }
 
   // ローカル保存（IOS端末の場合）
-  Future<String> _saveImageToLocalStorageIOS(Uint8List imageBytes) async  {
-    // IOSのアプリ専用ドキュメントディレクトリを取得
+  // Future<String> _saveImageToLocalStorageIOS(Uint8List imageBytes) async  {
+  //   // IOSのアプリ専用ドキュメントディレクトリを取得
+  //   final storageProvider = Provider.of<AppState>(context, listen: false);
+  //   final Directory directory = await getApplicationDocumentsDirectory();
+  //   final Directory dirPath;
+  //   if (storageProvider.selectedStorage == 'device') {
+  //     dirPath = Directory('${directory.path}/fanpixsnap');
+  //   } else {
+  //     dirPath = Directory('${directory.path}/fanpixsnaperr');
+  //   }
+  //
+  //   // 保存先が存在するか確認
+  //   if (dirPath != null) {
+  //     try {
+  //       if (!await dirPath.exists()) {
+  //         // 保存先が存在しない場合ディレクトリを作成する
+  //         await dirPath.create(recursive: true);
+  //       }
+  //     } catch (e) {
+  //       throw Exception("ディレクトリ作成に失敗しました: $e");
+  //     }
+  //   } else {
+  //     throw Exception("保存ディレクトリの取得に失敗しました");
+  //   }
+  //
+  //
+  //   // ファイル名は「edited_image_<タイムスタンプ>.jpg」として保存
+  //   final String filename = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
+  //   final String filePath = '$dirPath/$filename';
+  //   final file = File(filePath);
+  //   // 画像ファイルを作成してドキュメントディレクトリに保存
+  //   await file.writeAsBytes(imageBytes);
+  //   Future.microtask(() {
+  //     Provider.of<CameraScreenState>(context, listen: false)
+  //         .addLog('ローカルストレージに画像が保存されました（IOS）：$filePath');
+  //   });
+  //   return filePath;
+  //   try {
+  //     // iosのフォトライブラリに画像を保存
+  //     final AssetEntity asset = await PhotoManager.editor.saveImage(imageBytes, filename: filename);
+  //     print('画像がフォトライブラリに保存されました：${asset.id}');
+  //     // フォトライブラリに保存された場合は画像のIDを返却
+  //     return asset.id;
+  //   } catch(e) {
+  //     throw Exception('フォトライブラリへの保存に失敗しました：$e');
+  //   }
+  // }
+  Future<String> _saveImageToLocalStorageIOS(Uint8List imageBytes, BuildContext context) async {
     final storageProvider = Provider.of<AppState>(context, listen: false);
     final Directory directory = await getApplicationDocumentsDirectory();
     final Directory dirPath;
+
     if (storageProvider.selectedStorage == 'device') {
       dirPath = Directory('${directory.path}/fanpixsnap');
     } else {
@@ -523,40 +570,49 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     }
 
     // 保存先が存在するか確認
-    if (dirPath != null) {
-      try {
-        if (!await dirPath.exists()) {
-          // 保存先が存在しない場合ディレクトリを作成する
-          await dirPath.create(recursive: true);
-        }
-      } catch (e) {
-        throw Exception("ディレクトリ作成に失敗しました: $e");
-      }
-    } else {
-      throw Exception("保存ディレクトリの取得に失敗しました");
-    }
-
-
-    // ファイル名は「edited_image_<タイムスタンプ>.jpg」として保存
-    final String filename = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
-    final String filePath = '$dirPath/$filename';
-    final file = File(filePath);
-    // 画像ファイルを作成してドキュメントディレクトリに保存
-    await file.writeAsBytes(imageBytes);
-    Future.microtask(() {
-      Provider.of<CameraScreenState>(context, listen: false)
-          .addLog('ローカルストレージに画像が保存されました（IOS）：$filePath');
-    });
-    return filePath;
     try {
-      // iosのフォトライブラリに画像を保存
-      final AssetEntity asset = await PhotoManager.editor.saveImage(imageBytes, filename: filename);
-      print('画像がフォトライブラリに保存されました：${asset.id}');
-      // フォトライブラリに保存された場合は画像のIDを返却
-      return asset.id;
-    } catch(e) {
-      throw Exception('フォトライブラリへの保存に失敗しました：$e');
+      if (!await dirPath.exists()) {
+        await dirPath.create(recursive: true);
+      }
+    } catch (e) {
+      throw Exception("ディレクトリ作成に失敗しました: $e");
     }
+
+    // ファイル名作成
+    final String filename = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
+    final String filePath = '${dirPath.path}/$filename';
+    final File file = File(filePath);
+
+    try {
+      // ローカルストレージに画像を保存
+      await file.writeAsBytes(imageBytes);
+      Provider.of<CameraScreenState>(context, listen: false)
+          .addLog('ローカルストレージに画像が保存されました（iOS）：$filePath');
+    } catch (e) {
+      throw Exception('ローカルストレージへの保存に失敗しました: $e');
+    }
+
+    // iOSの写真ライブラリへの保存処理
+    try {
+      // 権限をリクエスト
+      final PermissionState ps = await PhotoManager.requestPermissionExtend();
+      if (ps.isAuth) {
+        // 写真ライブラリに保存
+        final AssetEntity? asset = await PhotoManager.editor.saveImage(imageBytes, filename: filename);
+        if (asset != null) {
+          print('画像がフォトライブラリに保存されました：${asset.id}');
+          return asset.id;
+        } else {
+          throw Exception('フォトライブラリへの保存に失敗しました');
+        }
+      } else {
+        throw Exception('写真ライブラリへのアクセス権限がありません');
+      }
+    } catch (e) {
+      throw Exception('フォトライブラリへの保存に失敗しました: $e');
+    }
+
+    return filePath;
   }
 
   Future<File> resizeImage(File file) async {

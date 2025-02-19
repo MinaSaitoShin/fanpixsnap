@@ -326,7 +326,8 @@ class LocalServerManager extends ChangeNotifier {
     if (connectivityResult.toString() == '[ConnectivityResult.wifi]') {
       for (var interface in await NetworkInterface.list()) {
         if (interface.name.toLowerCase().contains('wlan') ||
-            interface.name.toLowerCase().contains('wifi')) {
+            interface.name.toLowerCase().contains('wifi') ||
+            interface.name.toLowerCase().contains('en0')) {
           for (var addr in interface.addresses) {
             if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
               _getIpAddress = true;
