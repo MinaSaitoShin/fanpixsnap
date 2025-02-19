@@ -586,11 +586,12 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     try {
       // ローカルストレージに画像を保存
       await file.writeAsBytes(imageBytes);
-      Provider.of<CameraScreenState>(context, listen: false)
-          .addLog('ローカルストレージに画像が保存されました（iOS）：$filePath');
     } catch (e) {
       throw Exception('ローカルストレージへの保存に失敗しました: $e');
     }
+    Provider.of<CameraScreenState>(context, listen: false)
+        .addLog('ローカルストレージに画像が保存されました（iOS）：$filePath');
+    return filePath;
 
     // iOSの写真ライブラリへの保存処理
     try {
@@ -611,7 +612,6 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     } catch (e) {
       throw Exception('フォトライブラリへの保存に失敗しました: $e');
     }
-
     return filePath;
   }
 
