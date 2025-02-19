@@ -559,9 +559,18 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   //   }
   // }
   Future<String> _saveImageToLocalStorageIOS(Uint8List imageBytes, BuildContext context) async {
-    final String filename = 'edited_image_${DateTime.now().toLocal().toIso8601String().replaceAll(':', '-')}.jpg';
+    final String filename = 'edited_image_${DateTime.now()
+        .toLocal()
+        .toIso8601String()
+        .replaceAll(':', '-')}.jpg';
     final storageProvider = Provider.of<AppState>(context, listen: false);
-    String folderName = storageProvider.selectedStorage == 'device' ? "fanpixsnap" : "fanpixsnaperr";
+    String folderName = "";
+
+    if(storageProvider.selectedStorage == 'device'){
+      folderName = "fanpixsnap";
+    } else {
+      folderName = "fanpixsnaperr";
+    }
 
     // **1. 写真ライブラリの権限をリクエスト**
     final PermissionState ps = await PhotoManager.requestPermissionExtend();
@@ -573,7 +582,7 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
     final AssetEntity? asset = await PhotoManager.editor.saveImage(
       imageBytes,
       filename: filename,
-      relativePath: folderName, // ここでフォルダ名を指定すれば、自動でアルバムが作成される！
+      relativePath: folderName,
     );
 
     if (asset == null) {
