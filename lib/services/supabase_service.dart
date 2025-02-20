@@ -19,7 +19,8 @@ class SupabaseService {
         fileName,
         image,
         fileOptions: const FileOptions(
-          upsert: true, // 既存ファイルを上書きする場合はtrue
+          // 既存ファイルを上書きする場合はtrue
+          upsert: true,
         ),
       );
 

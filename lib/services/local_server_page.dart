@@ -76,7 +76,6 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
     setState(() {
       if (serverManager.isRunning && serverManager.getIpAddress) {
         // サーバーが動作中の場合
-        // _statusMessage = "サーバーが起動しています: ポート ${serverManager.serverPort}";
         _statusMessage = "サーバーが起動しています";
       }
       else if(!serverManager.getIpAddress) {

@@ -4,7 +4,8 @@ import 'login_screen.dart';
 import 'signup_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
-  final String email; // SignUpScreen から受け取るメールアドレス
+  // SignUpScreen から受け取るメールアドレス
+  final String email;
 
   EmailVerificationScreen({required this.email});
 

@@ -89,7 +89,8 @@ class _StorageServerSendScreenState extends State<StorageServerSendScreen> {
       setState(() {
         _selectedDate = picked;
       });
-      _loadImages(); // 選択日付の画像を再取得
+      // 選択日付の画像を再取得
+      _loadImages();
     }
   }
 

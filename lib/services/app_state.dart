@@ -12,8 +12,8 @@ class AppState with ChangeNotifier {
   // ストレージのパーミッション
   bool _storagePermissionGranted = false;
   // **保存先の選択肢**
-  // firebase = 外部ストレージ, local_server = ローカルサーバー, device = 自分の端末
-  String _selectedStorage = 'firebase';
+  // cloud = 外部ストレージ, local_server = ローカルサーバー, device = 自分の端末
+  String _selectedStorage = 'cloud';
 
   // ゲッター
   String get ipAddress => _ipAddress;

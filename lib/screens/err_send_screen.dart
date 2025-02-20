@@ -8,11 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
-
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../services/app_state.dart';
-// import '../services/firebase_service.dart';
 import '../services/supabase_service.dart';
 
 // カメラ画面を管理するウィジェット
@@ -42,12 +39,9 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
   List<File> _selectedImages = [];
   bool _isLoading = false;
 
-  static DateTime? _lastCheckedTime;
-  static bool? _lastOnlineStatus;
-  static const Duration cacheDuration = Duration(seconds: 30); // キャッシュ時間
-
   // 接続しているデバイスの情報
   String? _connectedDevice;
+
   @override
   void initState() {
     super.initState();
@@ -93,14 +87,6 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
       } else if (Platform.isIOS) {
         final Directory directory = await getApplicationDocumentsDirectory();
         final dirPath = Directory('${directory.path}/fanpixsnaperr');
-        // if (await dirPath.exists()) {
-        //   images = dirPath
-        //       .listSync()
-        //       .whereType<File>()
-        //       .where((item) => item.path.endsWith(".jpg"))
-        //       .toList()
-        //     ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-        // }
         if (await dirPath.exists()) {
           await for (var entity in dirPath.list()) {
             if (entity is File && (entity.path.toLowerCase().endsWith(".jpg") || entity.path.toLowerCase().endsWith(".jpeg"))) {
@@ -169,23 +155,13 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
         //String result;
 
         if(storageProvider.selectedStorage == 'firebase') {
-          // result = await FirebaseService.uploadImage(imageFile);
-          // if (result.isNotEmpty) {
-          //   // アップロードが成功した場合、QRコード表示画面へ遷移
-          //   Future.microtask(() {
-          //     Provider.of<ErrSendScreenState>(context, listen: false)
-          //         .addLog('外部ストレージへ保存: $result');
-          //   });
           bool uploadSuccess = await Navigator.push(
               context,
               MaterialPageRoute(
-                //builder: (context) => QRCodeScreen(imageUrl: result),
-                //builder: (context) => StorageQRCodeScreen(imageFuture: FirebaseService.uploadImage(resizedImageFile)),
                 builder: (context) => StorageQRCodeScreen(imageFuture: SupabaseService.uploadImage(resizedImageFile)),
 
               ),
             );
-          // } else {
           if (!uploadSuccess) {
             Future.microtask(() {
               showDialog(
@@ -329,7 +305,7 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
           ElevatedButton(
             onPressed: _isLoading ||
                 (_selectedImages.length != 1 &&
-                    Provider.of<AppState>(context, listen: false).selectedStorage == "firebase")
+                    Provider.of<AppState>(context, listen: false).selectedStorage == "cloud")
                 ? null
                 : () async {
               await _sendErrImage(_selectedImages);

@@ -3,13 +3,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:fan_pix_snap/screens/send_pic_screen.dart';
 import 'package:fan_pix_snap/services/local_server_manager.dart';
 import 'package:fan_pix_snap/services/local_client_manager.dart';
-//import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-//import 'package:firebase_core/firebase_core.dart';
-//import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,8 +28,6 @@ void main() async {
   String supabaseKey = dotenv.env['SUPABASE_KEY'] ?? 'default_key_here';
   String supabaseUrl = dotenv.env['SUPABASE_URL'] ?? 'default_url_here';
 
-  // Firebaseを初期化する処理
-  // await Firebase.initializeApp();
   // Supabaseを初期化する処理
   await Supabase.initialize(
     url: supabaseUrl,
@@ -42,43 +37,6 @@ void main() async {
       authFlowType: AuthFlowType.pkce, // 必要に応じて設定
     ),
   );
-
-//  final supabase = Supabase.instance.client;
-//  await supabase.auth.signInAnonymously;
-//  final response = await Supabase.instance.client.auth.signInAnonymously();
-
-// 既にログイン済みか確認（未ログインなら匿名ログイン）
-//   if (supabase.auth.currentSession == null) {
-//     // Anonymousログインができない場合は、サインアップで新規作成
-//     final response = await supabase.auth.signUp(
-//         email: 'user@example.com',
-//         password: 'password123',
-//     );
-//
-//     // サインアップ成功時の処理
-//     if (response.error == null) {
-//       print("サインアップ成功");
-//     } else {
-//       print("サインアップ失敗: ${response.error?.message}");
-//     }
-//   } else {
-//     print("既にログイン済み");
-//   }
-  
-  // Firebase App Checkの初期化
-  // try {
-  //   await FirebaseAppCheck.instance.activate(
-  //     // Android：開発中は debug、公開時は playIntegrityを選択する
-  //     androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-  //     // IOS
-  //     appleProvider: AppleProvider.deviceCheck,
-  //   );
-  // } catch (e) {
-  //     print('App Checkの初期化に失敗しました: $e');
-  // }
-
-  // // Firebase Authentication のセットアップ（匿名ログイン）
-  // await signInAnonymously();
 
   // アプリを起動。複数のProviderを設定して状態管理を提供
   runApp(
@@ -100,21 +58,6 @@ void main() async {
     ),
   );
 }
-
-extension on AuthResponse {
-  get error => null;
-}
-
-
-// // Firebase Authentication（匿名ログイン）
-// Future<void> signInAnonymously() async {
-//   try {
-//     UserCredential userCredential = await FirebaseAuth.instance.signInAnonymously();
-//     print("ログイン成功: ${userCredential.user?.uid}");
-//   } catch (e) {
-//     print("匿名ログイン失敗: $e");
-//   }
-// }
 
 // StatelessWidgetを継承。アプリのテーマやホームを設定
 class MyApp extends StatelessWidget {
@@ -142,6 +85,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 // ユーザーがログイン済みかチェックする画面
 class AuthCheck extends StatelessWidget {
   @override
@@ -163,26 +107,20 @@ class MainScreen extends StatefulWidget {
 
 // メイン画面クラス
 class _MainScreenState extends State<MainScreen> {
-  String? _token;
-  String? _e;
   bool _isDialogOpen = false;
-  // bool cameraGranted = false;
-  // bool storageGranted = false;
 
   @override
   void initState() {
     super.initState();
     _loadPreferences();
-    // アプリが起動したときにトークンを取得
-    // _getAppCheckToken();
   }
 
   // ユーザー設定をロード（保存先設定）
   Future<void> _loadPreferences() async {
     final storageProvider = Provider.of<AppState>(context, listen: false);
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    // **保存先の取得**（デフォルトは "firebase"）
-    String storedValue = prefs.getString('selectedStorage') ?? "firebase";
+    // **保存先の取得**（デフォルトは "cloud"）
+    String storedValue = prefs.getString('selectedStorage') ?? "cloud";
     storageProvider.setSelectedStorage(storedValue);
   }
 
@@ -191,217 +129,6 @@ class _MainScreenState extends State<MainScreen> {
     Navigator.pushReplacementNamed(context, '/'); // ログアウト後、認証画面へ
   }
 
-  // トークンを取得する関数
-  // Future<void> _getAppCheckToken() async {
-  //   try {
-  //     String? token = await FirebaseAppCheck.instance.getToken();
-  //     setState(() {
-  //       _token = token;
-  //     });
-  //   } catch (e) {
-  //     print("Error getting App Check token: $e");
-  //     setState(() {
-  //       _e = e.toString();
-  //       _token = "Failed to get token";
-  //     });
-  //   }
-  // }
-
-// // カメラとストレージの権限をチェックFuture<bool> _checkPermissions() async {
-// //   bool cameraGranted = false;
-// //   bool storageGranted = false;
-// //
-// //   if (Platform.isAndroid) {
-// //     final androidInfo = await DeviceInfoPlugin().androidInfo;
-// //     final int androidOsVersion = androidInfo.version.sdkInt;
-// //
-// //     if (androidOsVersion >= 29) {
-// //       // Android 10 (API 29) 以降では、Scoped Storageに対応
-// //       PermissionStatus storagePermission = await Permission.manageExternalStorage.request();
-// //       if (storagePermission.isGranted) {
-// //         storageGranted = true;
-// //         print("外部ストレージ管理パーミッションが許可されました");
-// //       } else {
-// //         print("外部ストレージ管理パーミッションが拒否されました");
-// //       }
-// //     } else {
-// //       // Android 10 未満では通常のストレージパーミッション
-// //       PermissionStatus storagePermission = await Permission.storage.request();
-// //       if (storagePermission.isGranted) {
-// //         storageGranted = true;
-// //         print("ストレージパーミッションが許可されました");
-// //       } else {
-// //         print("ストレージパーミッションが拒否されました");
-// //       }
-// //     }
-// //
-// //     // カメラのパーミッションをリクエスト
-// //     PermissionStatus cameraPermission = await Permission.camera.request();
-// //     if (cameraPermission.isGranted) {
-// //       cameraGranted = true;
-// //       print("カメラパーミッションが許可されました");
-// //     } else {
-// //       print("カメラパーミッションが拒否されました");
-// //     }
-// //
-// //   } else if (Platform.isIOS) {
-// //     // iOSの場合、写真のパーミッションをリクエスト
-// //     PermissionStatus photosPermission = await Permission.photos.request();
-// //     if (photosPermission.isGranted) {
-// //       cameraGranted = true;
-// //       storageGranted = true;
-// //       print("フォトパーミッションが許可されました");
-// //     } else {
-// //       print("フォトパーミッションが拒否されました");
-// //     }
-// //   }
-// //
-// //   // AppState にパーミッション情報を保存
-// //   Provider.of<AppState>(context, listen: false)
-// //       .updatePermissions(camera: cameraGranted, storage: storageGranted);
-// //
-// //   return cameraGranted && storageGranted;
-//   Future<void> checkPermissions(BuildContext context) async {
-//     if (Platform.isAndroid) {
-//       // Android端末の場合、バージョンごとにパーミッションをリクエスト
-//       final androidInfo = await DeviceInfoPlugin().androidInfo;
-//       final int androidOsVersion = androidInfo.version.sdkInt;
-//       // Android 10以降の場合、Scoped Storageの制約に対応
-//       // if (androidOsVersion >= 29) {
-//         if (androidOsVersion >= 33) {
-//         // Scoped Storageの場合は、外部ストレージの管理パーミッションをリクエスト
-//         // PermissionStatus storagePermission = await Permission.manageExternalStorage.request();
-//         PermissionStatus storagePermission = await Permission.photos.request();
-//         if (!storagePermission.isGranted) {
-//           print("外部ストレージの管理パーミッションが拒否されました");
-//           //_showPermissionDialog();
-//         }
-//       } else {
-//         // Android 10未満の場合は、通常のストレージパーミッションをリクエスト
-//         PermissionStatus storagePermission = await Permission.storage.request();
-//         if (!storagePermission.isGranted) {
-//           print("ストレージのアクセスが拒否されました");
-//           //_showPermissionDialog();
-//         }
-//       }
-//
-//       // カメラパーミッションのリクエスト
-//       PermissionStatus cameraPermission = await Permission.camera.request();
-//       if (!cameraPermission.isGranted) {
-//         print("カメラのアクセスが拒否されました");
-//         //_showPermissionDialog();
-//       }
-//
-//     } else if (Platform.isIOS) {
-//       // iOSの場合は、写真のパーミッションをリクエスト
-//       PermissionStatus photosPermission = await Permission.photos.request();
-//       if (!photosPermission.isGranted) {
-//         print("カメラのアクセスが拒否されました");
-//         //_showPermissionDialog();
-//       }
-//     }
-//
-//     // AppStateにパーミッション情報を保存
-//     Provider.of<AppState>(context, listen: false)
-//         .updatePermissions(camera: cameraGranted, storage: storageGranted);
-//   }
-//   Future<bool> _checkPermissions() async {
-//     bool cameraGranted = false;
-//     bool storageGranted = false;
-//
-//     if (Platform.isAndroid) {
-//       final androidInfo = await DeviceInfoPlugin().androidInfo;
-//       final int androidOsVersion = androidInfo.version.sdkInt;
-//
-//       if (androidOsVersion >= 29) {
-//         // Android 10 (API 29) 以降では、Scoped Storageに対応
-//         PermissionStatus storagePermission = await Permission.manageExternalStorage.request();
-//         if (storagePermission.isGranted) {
-//           storageGranted = true;
-//           print("外部ストレージ管理パーミッションが許可されました");
-//         } else {
-//           print("外部ストレージ管理パーミッションが拒否されました");
-//         }
-//       } else {
-//         // Android 10 未満では通常のストレージパーミッション
-//         PermissionStatus storagePermission = await Permission.storage.request();
-//         if (storagePermission.isGranted) {
-//           storageGranted = true;
-//           print("ストレージパーミッションが許可されました");
-//         } else {
-//           print("ストレージパーミッションが拒否されました");
-//         }
-//       }
-//
-//       // カメラのパーミッションをリクエスト
-//       PermissionStatus cameraPermission = await Permission.camera.request();
-//       if (cameraPermission.isGranted) {
-//         cameraGranted = true;
-//         print("カメラパーミッションが許可されました");
-//       } else {
-//         print("カメラパーミッションが拒否されました");
-//       }
-//
-//     } else if (Platform.isIOS) {
-//       // iOSの場合、写真のパーミッションをリクエスト
-//       PermissionStatus photosPermission = await Permission.photos.request();
-//       if (photosPermission.isGranted) {
-//         cameraGranted = true;
-//         storageGranted = true;
-//         print("フォトパーミッションが許可されました");
-//       } else {
-//         print("フォトパーミッションが拒否されました");
-//       }
-//     }
-//
-//     // AppState にパーミッション情報を保存
-//     Provider.of<AppState>(context, listen: false)
-//         .updatePermissions(camera: cameraGranted, storage: storageGranted);
-//
-//     return cameraGranted && storageGranted;
-//   }
-//
-//
-//   // カメラ及びストレージのアクセス許可をリクエストするダイアログ
-//   Future<void> _showPermissionDialog() async {
-//     if (!mounted || _isDialogOpen) return;
-//     _isDialogOpen = true;
-//     showDialog(
-//       context: context,
-//       builder: (BuildContext context) {
-//         return AlertDialog(
-//           title: Text('カメラとストレージへのアクセス権限が必要です'),
-//           content: Text('このアプリを使用するためには、カメラとストレージへのアクセスが必要です。設定画面に移動して権限を有効にしてください。'),
-//           actions: [
-//             TextButton(
-//               onPressed: () {
-//                 Navigator.of(context).pop();
-//                 _isDialogOpen = false;
-//               },
-//               child: Text('閉じる'),
-//             ),
-//             TextButton(
-//               onPressed: () {
-//                 openAppSettings();
-//                 checkPermissions(context);
-//               },
-//               child: Text('設定に移動'),
-//             ),
-//           ],
-//         );
-//       },
-//     );
-//     // 設定画面から戻った後、パーミッションを再確認
-//     bool permissionGranted = await _checkPermissions();
-//     if (permissionGranted) {
-//       // 権限が許可されていれば、状態を更新
-//       Provider.of<AppState>(context, listen: false)
-//           .updatePermissions(camera: true, storage: true);
-//     } else {
-//       // 権限が許可されていなければ、再度ダイアログ表示など
-//       _showPermissionDialog();
-//     }
-//   }
   Future<bool> _checkPermissions() async {
     bool cameraGranted = false;
     bool storageGranted = false;
@@ -504,12 +231,15 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: AppBar(title: Text('FanPixSnap')),
       body: SingleChildScrollView(
-        child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(height: 20), // ボタン間のスペース
-              ElevatedButton(
+              // 画像撮影関連
+              SectionHeader(title: '画像関連'),
+              ElevatedButton.icon(
                 onPressed: () {
                   _requestPermissionsAndProceed(() {
                     Navigator.push(
@@ -518,10 +248,11 @@ class _MainScreenState extends State<MainScreen> {
                     );
                   });
                 },
-                child: Text(' 画像を撮影 '),
+                icon: Icon(Icons.camera_alt),
+                label: Text('画像を撮影'),
               ),
-              SizedBox(height: 20), // ボタン間のスペース
-              ElevatedButton(
+              SizedBox(height: 10),
+              ElevatedButton.icon(
                 onPressed: () {
                   _requestPermissionsAndProceed(() {
                     Navigator.push(
@@ -530,71 +261,82 @@ class _MainScreenState extends State<MainScreen> {
                     );
                   });
                 },
-                child: Text('画像を送る'),
+                icon: Icon(Icons.send),
+                label: Text('画像を送る'),
               ),
-              SizedBox(height: 20), // ボタン間のスペース
+              SizedBox(height: 20),
               Divider(),
-              SizedBox(height: 20), // ボタン間のスペース
-              ElevatedButton(
+
+              // 画像削除関連
+              SectionHeader(title: '削除関連'),
+              ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => DeleteImageScreen(folderName: "fanpixsnap")),
                   );
                 },
-                child: Text("端末の画像を削除"),
+                icon: Icon(Icons.delete),
+                label: Text("端末の画像を削除"),
               ),
-              SizedBox(height: 20), // ボタン間のスペース
-              ElevatedButton(
+              SizedBox(height: 10),
+              ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => DeleteImageScreen(folderName: "fanpixsnaperr")),
                   );
                 },
-                child: Text("端末のエラー画像を削除"),
+                icon: Icon(Icons.error),
+                label: Text("端末のエラー画像を削除"),
               ),
-              SizedBox(height: 20), // ボタン間のスペース
+              SizedBox(height: 20),
               Divider(),
-              SizedBox(height: 60), // ボタン間のスペース
-              ElevatedButton(
-                // ログ画面に遷移するボタン
+
+              // ログ関連
+              SectionHeader(title: 'ログ関連'),
+              ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => LogScreen()),
                   );
                 },
-                child: Text(' ログを表示 '),
+                icon: Icon(Icons.list),
+                label: Text('ログを表示'),
               ),
-              SizedBox(height: 60), // ボタン間のスペース
+              SizedBox(height: 20),
               Divider(),
-              SizedBox(height: 30), // ボタン間のスペース
-              Text('ログアウト'),
-              IconButton(
-                icon: Icon(Icons.logout),
-                onPressed: _signOut,
+
+              // ログアウト
+              SizedBox(height: 30),
+              Align(
+                alignment: Alignment.center,
+                child: Column(
+                  children: [
+                    Text('ログアウト'),
+                    IconButton(
+                      icon: Icon(Icons.logout),
+                      onPressed: _signOut,
+                    ),
+                  ],
+                ),
               ),
-              // トークン表示部分
-              // Padding(
-              //   padding: EdgeInsets.all(16.0),
-              //   child: Text(
-              //     _token != null ? 'App Check Token: $_token:' : 'Loading token...',
-              //     style: TextStyle(fontSize: 16, color: Colors.black),
-              //   ),
-              // ),
-              // // エラー表示部分
-              // if (_e != null)
-              //   Padding(
-              //     padding: EdgeInsets.all(16.0), // 余白を追加
-              //     child: Text(
-              //       'エラー: $_token:$_e',  // エラー内容を表示
-              //       style: TextStyle(fontSize: 16, color: Colors.red),
-              //     ),
-              //   ),
+              SizedBox(height: 40), // ボタン間のスペース
             ],
           ),
         ),
+      ),
+    );
+  }
+
+// セクションタイトル
+  Widget SectionHeader({required String title}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: Text(
+        title,
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
     );
   }

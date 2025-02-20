@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -25,13 +26,32 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
     _loadImages();
   }
 
+  // ストレージ権限確認（API29以降）
   Future<bool> requestManageExternalStoragePermission() async {
     if (await Permission.manageExternalStorage.isGranted) {
       return true;
     }
-
     PermissionStatus status = await Permission.manageExternalStorage.request();
     return status.isGranted;
+  }
+
+  // ストレージ権限確認（API29未満）
+  Future<bool> requestStoragePermission() async {
+    // ストレージアクセス権限の状態を確認
+    PermissionStatus status = await Permission.storage.status;
+
+    if (status.isGranted) {
+      return true;
+    }
+    PermissionStatus newStatus = await Permission.storage.request();
+    return newStatus.isGranted;
+  }
+
+  // SDKバージョンを取得する関数
+  Future<int> _getSdkVersion() async {
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final int version = androidInfo.version.sdkInt;;
+    return version;
   }
 
   // **画像を取得**
@@ -138,12 +158,24 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
   // **画像を削除**
   Future<void> _deleteSelectedImages() async {
     if (Platform.isAndroid) {
-      bool hasPermission = await requestManageExternalStoragePermission();
-      if (!hasPermission) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("ストレージの管理権限が必要です")),
-        );
-        return;
+      if (Platform.isAndroid && (await _getSdkVersion()) >= 29) {
+        // Android 10 (API 29) 以上の場合は管理権限を確認
+        bool hasPermission = await requestManageExternalStoragePermission();
+        if (!hasPermission) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("ストレージの管理権限が必要です")),
+          );
+          return;
+        }
+      } else {
+        // API 28以下では通常のストレージ権限を確認
+        bool hasPermission = await requestStoragePermission();
+        if (!hasPermission) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("ストレージアクセス権限が必要です")),
+          );
+          return;
+        }
       }
     }
 
@@ -170,7 +202,6 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
     await _loadImages();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -187,41 +218,41 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
       body: images.isEmpty
           ? Center(child: Text('削除できる画像がありません'))
           : GridView.builder(
-        padding: EdgeInsets.all(8),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, // 画像を3列で表示
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-        ),
-        itemCount: images.length,
-        itemBuilder: (context, index) {
-          final image = images[index];
-          final isSelected = selectedImages.contains(image);
+              padding: EdgeInsets.all(8),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3, // 画像を3列で表示
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: images.length,
+              itemBuilder: (context, index) {
+                final image = images[index];
+                final isSelected = selectedImages.contains(image);
 
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                if (isSelected) {
-                  selectedImages.remove(image);
-                } else {
-                  selectedImages.add(image);
-                }
-              });
-            },
-            child: Stack(
-              children: [
-                Image.file(image, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-                if (isSelected)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Icon(Icons.check_circle, color: Colors.redAccent, size: 24),
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        selectedImages.remove(image);
+                      } else {
+                        selectedImages.add(image);
+                      }
+                    });
+                  },
+                  child: Stack(
+                    children: [
+                      Image.file(image, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                      if (isSelected)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Icon(Icons.check_circle, color: Colors.redAccent, size: 24),
+                        ),
+                    ],
                   ),
-              ],
-            ),
-          );
-        },
-      ),
+                );
+              },
+          ),
     );
   }
 }

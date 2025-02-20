@@ -20,13 +20,15 @@ class LocalQRCodeDisplayScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             QrImageView(
-              data: serverUrl, // QRコードに表示するURL
+              // QRコードに表示するURL
+              data: serverUrl,
               version: QrVersions.auto,
               size: 200.0,
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: onBack, // 戻るボタンの処理
+              // 戻るボタンの処理
+              onPressed: onBack,
               child: Text('戻る'),
             ),
           ],

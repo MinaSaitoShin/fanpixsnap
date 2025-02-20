@@ -134,27 +134,27 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
               child: _imageFiles.isEmpty
                   ? Center(child: Text('画像が見つかりません'))
                   : ListView.builder(
-                itemCount: _imageFiles.length,
-                itemBuilder: (context, index) {
-                  final fileName =
-                      _imageFiles[index].uri.pathSegments.last;
-                  bool isSelected =
-                      _selectedImageFile == _imageFiles[index];
-                  return ListTile(
-                    contentPadding: EdgeInsets.all(8.0),
-                    leading: Container(
-                      decoration: BoxDecoration(
-                        border: isSelected
-                            ? Border.all(color: Colors.blue, width: 3)
-                            : null,
-                      ),
-                      child: Image.file(_imageFiles[index]),
-                    ),
-                    title: Text('$fileName'),
-                    onTap: () => _generateQRCode(_imageFiles[index]),
-                  );
-                },
-              ),
+                      itemCount: _imageFiles.length,
+                      itemBuilder: (context, index) {
+                        final fileName =
+                            _imageFiles[index].uri.pathSegments.last;
+                        bool isSelected =
+                            _selectedImageFile == _imageFiles[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.all(8.0),
+                          leading: Container(
+                            decoration: BoxDecoration(
+                              border: isSelected
+                                  ? Border.all(color: Colors.blue, width: 3)
+                                  : null,
+                            ),
+                            child: Image.file(_imageFiles[index]),
+                          ),
+                          title: Text('$fileName'),
+                          onTap: () => _generateQRCode(_imageFiles[index]),
+                        );
+                      },
+                  ),
             ),
             if (_selectedImageFile == null && _accessKey == null)
               ElevatedButton(

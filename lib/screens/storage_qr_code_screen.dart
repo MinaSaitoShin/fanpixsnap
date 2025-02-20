@@ -15,7 +15,8 @@ class StorageQRCodeScreen extends StatelessWidget {
           future: imageFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return CircularProgressIndicator(); // アップロード中のローディング
+              // アップロード中のローディング
+              return CircularProgressIndicator();
             } else if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -33,7 +34,8 @@ class StorageQRCodeScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   QrImageView(
-                    data: snapshot.data!, // 取得した画像URLをQRコードに埋め込む
+                    // 取得した画像URLをQRコードに埋め込む
+                    data: snapshot.data!,
                     version: QrVersions.auto,
                     size: 200.0,
                   ),

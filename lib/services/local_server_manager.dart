@@ -126,18 +126,6 @@ class LocalServerManager extends ChangeNotifier {
     }
   }
 
-  // ネットワーク接続を確認するメソッド
-  void _checkNetworkStatus() async {
-    try {
-      final result = await InternetAddress.lookup('google.com');
-      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-        _addLog('ネットワーク接続は正常です');
-      }
-    } on SocketException catch (_) {
-      _addLog('ネットワーク接続がありません');
-    }
-  }
-
   // 画像アップロード処理を行うメソッド
   Future<void> _handleImageUpload(HttpRequest request) async {
     try {

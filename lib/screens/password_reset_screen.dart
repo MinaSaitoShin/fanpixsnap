@@ -8,7 +8,6 @@ class PasswordResetScreen extends StatefulWidget {
 
 class _PasswordResetScreenState extends State<PasswordResetScreen> {
   final TextEditingController _newPasswordController = TextEditingController();
-  bool _isLoading = false;
   String _errorMessage = '';
 
   final supabase = Supabase.instance.client;

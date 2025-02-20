@@ -39,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else if (response.user != null) {
         setState(() => _errorMessage = '');
-        print("✅ ログイン成功: ${response.user!.id}");
+        print("ログイン成功: ${response.user!.id}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("ログイン成功")),
         );
