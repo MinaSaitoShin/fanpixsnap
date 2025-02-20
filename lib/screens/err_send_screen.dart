@@ -80,7 +80,10 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
         final dirPath = Directory('/storage/emulated/0/Pictures/fanpixsnaperr');
         if (await dirPath.exists()) {
           await for (var entity in dirPath.list()) {
-            if (entity is File && (entity.path.toLowerCase().endsWith(".jpg") || entity.path.toLowerCase().endsWith(".jpeg"))) {
+            if (entity is File &&
+                (entity.path.toLowerCase().endsWith(".jpg") || entity.path.toLowerCase().endsWith(".jpeg")) &&
+                !entity.path.contains("/.trashed-") // **ゴミ箱フォルダを無視**
+                ) {
               images.add(entity);
             }
           }

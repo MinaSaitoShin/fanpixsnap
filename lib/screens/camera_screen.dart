@@ -806,8 +806,8 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
   Future<String> _sendImageToLocalServer(Uint8List editedImageData) async {
     String localUrl;
     try {
-      final ipAddress = Provider.of<AppState>(context).ipAddress;
-      final port = Provider.of<AppState>(context).port;
+      final ipAddress = Provider.of<AppState>(context, listen: false).ipAddress;
+      final port = Provider.of<AppState>(context, listen: false).port;
       final Uri uri = Uri.parse('http://$ipAddress:$port/upload');
 
       // 送信中のメッセージを更新
@@ -888,6 +888,7 @@ class _CameraClassState extends State<CameraScreen> with WidgetsBindingObserver 
         Provider.of<CameraScreenState>(context, listen: false)
             .addLog('画像送信中にエラーが発生しました: $e');
       });
+      print('画像送信中にエラーが発生しました: $e');
       return '画像送信中にエラーが発生しました: $e';
     }
   }
