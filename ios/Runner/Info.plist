@@ -51,6 +51,8 @@
     <string>カメラへのアクセスが必要です。</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>フォトライブラリに画像を保存するためのアクセス権が必要です。</string>
+    <key>NSPhotoLibraryRemoveUsageDescription</key>
+    <string>写真ライブラリから画像を削除するために必要です。</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>マイクを利用するための理由を記載</string>
     <key>NSLocalNetworkUsageDescription</key>

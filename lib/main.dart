@@ -18,6 +18,7 @@ import 'screens/signup_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/log_screen.dart';
 import 'screens/err_send_screen.dart';
+import 'screens/delete_image_screen.dart';
 import 'services/app_state.dart';
 
 void main() async {
@@ -30,8 +31,6 @@ void main() async {
   String supabaseKey = dotenv.env['SUPABASE_KEY'] ?? 'default_key_here';
   String supabaseUrl = dotenv.env['SUPABASE_URL'] ?? 'default_url_here';
 
-  print('supabaseKeyの確認$supabaseKey');
-  print('supabaseUrlの確認$supabaseUrl');
   // Firebaseを初期化する処理
   // await Firebase.initializeApp();
   // Supabaseを初期化する処理
@@ -403,7 +402,6 @@ class _MainScreenState extends State<MainScreen> {
 //       _showPermissionDialog();
 //     }
 //   }
-  // カメラとストレージの権限を確認
   Future<bool> _checkPermissions() async {
     bool cameraGranted = false;
     bool storageGranted = false;
@@ -412,37 +410,41 @@ class _MainScreenState extends State<MainScreen> {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final int androidOsVersion = androidInfo.version.sdkInt;
 
-      // カメラのパーミッションリクエスト
+      // ** カメラのパーミッションリクエスト**
       PermissionStatus cameraPermission = await Permission.camera.request();
       cameraGranted = cameraPermission.isGranted;
 
-      // Android 13以上 (API 33) は `photos`、それ未満は `storage`
-      PermissionStatus storagePermission = androidOsVersion >= 33
-          ? await Permission.photos.request()
-          : await Permission.storage.request();
-      storageGranted = storagePermission.isGranted;
-
+      // ** Android のストレージ権限リクエスト**
+      if (androidOsVersion >= 33) {
+        // **Android 13 (API 33) 以上は `photos` 権限をリクエスト**
+        PermissionStatus storagePermission = await Permission.photos.request();
+        storageGranted = storagePermission.isGranted;
+      } else if (androidOsVersion >= 30) {
+        // **Android 11 (API 30) 以上は `MANAGE_EXTERNAL_STORAGE` をリクエスト**
+        PermissionStatus manageStoragePermission = await Permission.manageExternalStorage.request();
+        storageGranted = manageStoragePermission.isGranted;
+      } else {
+        // **Android 10 (API 29) 以下は `storage` 権限をリクエスト**
+        PermissionStatus storagePermission = await Permission.storage.request();
+        storageGranted = storagePermission.isGranted;
+      }
     } else if (Platform.isIOS) {
-      //   PermissionStatus photosPermission = await Permission.photos.request();
-      //   cameraGranted = photosPermission.isGranted;
-      //   storageGranted = photosPermission.isGranted;
-      // }
       final iosInfo = await DeviceInfoPlugin().iosInfo;
       final int iosVersion = int.parse(iosInfo.systemVersion.split('.')[0]);
       PermissionStatus photosPermission = await Permission.photos.request();
 
       if (photosPermission.isGranted) {
-        // フルアクセスが許可された場合
+        // **iOS でフルアクセスが許可された場合**
         cameraGranted = true;
         storageGranted = true;
       } else if (photosPermission.isLimited && iosVersion >= 14) {
-        // iOS 14 以降で「制限付きアクセス」の場合
-        storageGranted = true; // 一部の写真のみアクセス可能
-        cameraGranted = false; // カメラの利用は未許可の可能性
-        // ユーザーに設定変更を促す
+        // **iOS 14 以降で「制限付きアクセス」**
+        storageGranted = true; // **一部の写真のみアクセス可能**
+        cameraGranted = false; // **カメラの利用は未許可の可能性**
+        // **ユーザーに設定変更を促す**
         Future.microtask(() => PhotoManager.openSetting());
       } else {
-        // 許可されていない場合
+        // **許可されていない場合**
         cameraGranted = false;
         storageGranted = false;
       }
@@ -506,6 +508,7 @@ class _MainScreenState extends State<MainScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              SizedBox(height: 20), // ボタン間のスペース
               ElevatedButton(
                 onPressed: () {
                   _requestPermissionsAndProceed(() {
@@ -529,7 +532,31 @@ class _MainScreenState extends State<MainScreen> {
                 },
                 child: Text('画像を送る'),
               ),
-              SizedBox(height: 100), // ボタン間のスペース
+              SizedBox(height: 20), // ボタン間のスペース
+              Divider(),
+              SizedBox(height: 20), // ボタン間のスペース
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => DeleteImageScreen(folderName: "fanpixsnap")),
+                  );
+                },
+                child: Text("端末の画像を削除"),
+              ),
+              SizedBox(height: 20), // ボタン間のスペース
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => DeleteImageScreen(folderName: "fanpixsnaperr")),
+                  );
+                },
+                child: Text("端末のエラー画像を削除"),
+              ),
+              SizedBox(height: 20), // ボタン間のスペース
+              Divider(),
+              SizedBox(height: 60), // ボタン間のスペース
               ElevatedButton(
                 // ログ画面に遷移するボタン
                 onPressed: () {
@@ -540,6 +567,10 @@ class _MainScreenState extends State<MainScreen> {
                 },
                 child: Text(' ログを表示 '),
               ),
+              SizedBox(height: 60), // ボタン間のスペース
+              Divider(),
+              SizedBox(height: 30), // ボタン間のスペース
+              Text('ログアウト'),
               IconButton(
                 icon: Icon(Icons.logout),
                 onPressed: _signOut,

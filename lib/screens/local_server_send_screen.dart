@@ -26,7 +26,7 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
   }
 
   void _startAutoUpdate() {
-    _timer = Timer.periodic(Duration(seconds: 5), (timer) {
+    _timer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (_selectedImageFile == null && _accessKey == null) {
         _loadImages();
       }
@@ -42,7 +42,8 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
           images = directory
               .listSync()
               .whereType<FileSystemEntity>()
-              .where((item) => item.path.endsWith(".jpg"))
+              .where((item) => item.path.endsWith(".jpg")&&
+                  !item.path.contains("/.trashed-"))
               .map((item) => File(item.path))
               .toList()
             ..sort((a, b) =>
