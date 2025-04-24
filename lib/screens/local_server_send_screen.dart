@@ -42,12 +42,13 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
           images = directory
               .listSync()
               .whereType<FileSystemEntity>()
-              .where((item) => item.path.endsWith(".jpg")&&
+              .where((item) =>
+                  item.path.endsWith(".jpg") &&
                   !item.path.contains("/.trashed-"))
               .map((item) => File(item.path))
               .toList()
-            ..sort((a, b) =>
-                b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+            ..sort(
+                (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
         } else {
           print('ディレクトリが見つかりません: ${directory.path}');
         }
@@ -62,8 +63,8 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
               .where((item) => item.path.endsWith(".jpg"))
               .map((item) => File(item.path))
               .toList()
-            ..sort((a, b) =>
-                b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+            ..sort(
+                (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
         }
       }
       if (mounted) {
@@ -95,8 +96,7 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     final timestamp = DateTime.now().toLocal().millisecondsSinceEpoch;
     final expirationTime = 5 * 60 * 1000;
-    final serverUrl =
-    _accessKey != null
+    final serverUrl = _accessKey != null
         ? 'http://${appState.localIpAddress}:${appState.port}?file=$_accessKey&timestamp=$timestamp&expiresIn=$expirationTime'
         : '';
 
@@ -154,7 +154,7 @@ class _LocalServerSendScreenState extends State<LocalServerSendScreen> {
                           onTap: () => _generateQRCode(_imageFiles[index]),
                         );
                       },
-                  ),
+                    ),
             ),
             if (_selectedImageFile == null && _accessKey == null)
               ElevatedButton(

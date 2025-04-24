@@ -49,7 +49,8 @@ class _LocalClientPageState extends State<LocalClientPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // アプリが非アクティブまたは切断された場合に接続を切断
-    if (state == AppLifecycleState.detached || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.detached ||
+        state == AppLifecycleState.inactive) {
       _disconnectFromServer();
     }
   }
@@ -189,7 +190,8 @@ class _LocalClientPageState extends State<LocalClientPage>
               onPressed: _connectToServer,
               child: Text(" ローカルサーバーに接続 "),
               style: ElevatedButton.styleFrom(
-                backgroundColor: localClientManager.isConnected ? Colors.grey : Colors.white,
+                backgroundColor:
+                    localClientManager.isConnected ? Colors.grey : Colors.white,
               ),
             ),
             // 切断ボタン
@@ -198,7 +200,9 @@ class _LocalClientPageState extends State<LocalClientPage>
               onPressed: _disconnectFromServer,
               child: Text(" ローカルサーバーから切断 "),
               style: ElevatedButton.styleFrom(
-                backgroundColor: !localClientManager.isConnected ? Colors.grey : Colors.white,
+                backgroundColor: !localClientManager.isConnected
+                    ? Colors.grey
+                    : Colors.white,
               ),
             ),
             SizedBox(height: 30),

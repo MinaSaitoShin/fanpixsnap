@@ -100,7 +100,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
               },
               child: Text(
                 "すでにアカウントをお持ちの方はこちら",
-                style: TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+                style: TextStyle(
+                    color: Colors.blue, decoration: TextDecoration.underline),
               ),
             ),
           ],

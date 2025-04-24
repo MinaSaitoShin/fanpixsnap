@@ -16,16 +16,17 @@ class SupabaseService {
 
       // Supabase Storageへアップロード
       await supabase.storage.from(bucketName).upload(
-        fileName,
-        image,
-        fileOptions: const FileOptions(
-          // 既存ファイルを上書きする場合はtrue
-          upsert: true,
-        ),
-      );
+            fileName,
+            image,
+            fileOptions: const FileOptions(
+              // 既存ファイルを上書きする場合はtrue
+              upsert: true,
+            ),
+          );
 
       // 公開URLを取得
-      String downloadUrl = supabase.storage.from(bucketName).getPublicUrl(fileName);
+      String downloadUrl =
+          supabase.storage.from(bucketName).getPublicUrl(fileName);
 
       // 現在のユーザーID（AuthのUID）を取得
       final userId = supabase.auth.currentUser?.id;

@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 
 class StorageServerSendScreen extends StatefulWidget {
   @override
-  _StorageServerSendScreenState createState() => _StorageServerSendScreenState();
+  _StorageServerSendScreenState createState() =>
+      _StorageServerSendScreenState();
 }
 
 class _StorageServerSendScreenState extends State<StorageServerSendScreen> {
@@ -37,16 +38,15 @@ class _StorageServerSendScreenState extends State<StorageServerSendScreen> {
         return;
       }
 
-      final selectedDateFormatted = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final selectedDateFormatted =
+          DateFormat('yyyy-MM-dd').format(_selectedDate);
       print("選択された日付: $selectedDateFormatted");
 
       // ユーザーIDを取得
       final userId = user.id;
 
-      final response = await supabase.rpc(
-          'get_files_by_date',
-          params: {'date': selectedDateFormatted.toString()}
-      );
+      final response = await supabase.rpc('get_files_by_date',
+          params: {'date': selectedDateFormatted.toString()});
 
       if (response is List) {
         print("画像取得成功: $response");
@@ -59,8 +59,8 @@ class _StorageServerSendScreenState extends State<StorageServerSendScreen> {
               'user_id': image['user_id'],
               'name': image['file_name'],
               'url': image['url'],
-              'createdAt': DateFormat('yyyy/MM/dd HH:mm:ss').format(
-                  DateTime.parse(image['created_at'])),
+              'createdAt': DateFormat('yyyy/MM/dd HH:mm:ss')
+                  .format(DateTime.parse(image['created_at'])),
             };
           }).toList();
         });
@@ -99,7 +99,8 @@ class _StorageServerSendScreenState extends State<StorageServerSendScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => StorageQRCodeScreen(imageFuture: Future.value(imageUrl)),
+        builder: (context) =>
+            StorageQRCodeScreen(imageFuture: Future.value(imageUrl)),
       ),
     );
   }
@@ -115,7 +116,8 @@ class _StorageServerSendScreenState extends State<StorageServerSendScreen> {
             // 日付選択ボタン
             ElevatedButton(
               onPressed: () => _selectDate(context),
-              child: Text("日付を選択: ${DateFormat('yyyy/MM/dd').format(_selectedDate)}"),
+              child: Text(
+                  "日付を選択: ${DateFormat('yyyy/MM/dd').format(_selectedDate)}"),
             ),
             SizedBox(height: 10),
 
@@ -123,28 +125,28 @@ class _StorageServerSendScreenState extends State<StorageServerSendScreen> {
             _isLoading
                 ? Expanded(child: Center(child: CircularProgressIndicator()))
                 : Expanded(
-              child: _imageList.isEmpty
-                  ? Center(child: Text('画像が見つかりません'))
-                  : ListView.builder(
-                itemCount: _imageList.length,
-                itemBuilder: (context, index) {
-                  var image = _imageList[index];
+                    child: _imageList.isEmpty
+                        ? Center(child: Text('画像が見つかりません'))
+                        : ListView.builder(
+                            itemCount: _imageList.length,
+                            itemBuilder: (context, index) {
+                              var image = _imageList[index];
 
-                  return ListTile(
-                    contentPadding: EdgeInsets.all(8.0),
-                    leading: Image.network(
-                      image['url'],
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                    ),
-                    title: Text(image['name']),
-                    subtitle: Text("作成日時: ${image['createdAt']}"),
-                    onTap: () => _generateQRCode(image['url']),
-                  );
-                },
-              ),
-            ),
+                              return ListTile(
+                                contentPadding: EdgeInsets.all(8.0),
+                                leading: Image.network(
+                                  image['url'],
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                                title: Text(image['name']),
+                                subtitle: Text("作成日時: ${image['createdAt']}"),
+                                onTap: () => _generateQRCode(image['url']),
+                              );
+                            },
+                          ),
+                  ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => _loadImages(),

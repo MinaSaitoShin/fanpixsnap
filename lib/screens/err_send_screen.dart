@@ -75,26 +75,31 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
         if (await dirPath.exists()) {
           await for (var entity in dirPath.list()) {
             if (entity is File &&
-                (entity.path.toLowerCase().endsWith(".jpg") || entity.path.toLowerCase().endsWith(".jpeg")) &&
-                !entity.path.contains("/.trashed-") // **ゴミ箱フォルダを無視**
+                    (entity.path.toLowerCase().endsWith(".jpg") ||
+                        entity.path.toLowerCase().endsWith(".jpeg")) &&
+                    !entity.path.contains("/.trashed-") // **ゴミ箱フォルダを無視**
                 ) {
               images.add(entity);
             }
           }
           // ソート処理（非同期）
-          images.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+          images.sort(
+              (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
         }
       } else if (Platform.isIOS) {
         final Directory directory = await getApplicationDocumentsDirectory();
         final dirPath = Directory('${directory.path}/fanpixsnaperr');
         if (await dirPath.exists()) {
           await for (var entity in dirPath.list()) {
-            if (entity is File && (entity.path.toLowerCase().endsWith(".jpg") || entity.path.toLowerCase().endsWith(".jpeg"))) {
+            if (entity is File &&
+                (entity.path.toLowerCase().endsWith(".jpg") ||
+                    entity.path.toLowerCase().endsWith(".jpeg"))) {
               images.add(entity);
             }
           }
           // ソート処理（非同期）
-          images.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+          images.sort(
+              (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
         }
       }
       setState(() {
@@ -104,7 +109,7 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
       Future.microtask(() {
         Provider.of<ErrSendScreenState>(context, listen: false)
             .addLog('エラー送信画像の読み込みでエラー: $e');
-        });
+      });
     }
   }
 
@@ -133,7 +138,8 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
       return;
     }
     // FirebaseStorageの場合、選択画像が1枚のみか確認
-    if (Provider.of<AppState>(context, listen: false).selectedStorage == "firebase" &&
+    if (Provider.of<AppState>(context, listen: false).selectedStorage ==
+            "firebase" &&
         _selectedImages.length != 1) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('外部ストレージへ保存をする場合は、1枚ずつ選択してください。')),
@@ -154,14 +160,14 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
 
         //String result;
 
-        if(storageProvider.selectedStorage == 'firebase') {
+        if (storageProvider.selectedStorage == 'firebase') {
           bool uploadSuccess = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => StorageQRCodeScreen(imageFuture: SupabaseService.uploadImage(resizedImageFile)),
-
-              ),
-            );
+            context,
+            MaterialPageRoute(
+              builder: (context) => StorageQRCodeScreen(
+                  imageFuture: SupabaseService.uploadImage(resizedImageFile)),
+            ),
+          );
           if (!uploadSuccess) {
             Future.microtask(() {
               showDialog(
@@ -199,7 +205,6 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
         // 送信後、選択リストをクリア
         _selectedImages.clear();
       });
-
     } catch (e) {
       Future.microtask(() {
         Provider.of<ErrSendScreenState>(context, listen: false)
@@ -217,11 +222,13 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
 
     for (var imageData in images) {
       try {
-        final response = await http.post(
-          uri,
-          headers: {'Content-Type': 'application/octet-stream'},
-          body: imageData,
-        ).timeout(Duration(seconds: 30));
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/octet-stream'},
+              body: imageData,
+            )
+            .timeout(Duration(seconds: 30));
 
         if (response.statusCode != 200) {
           allSuccess = false;
@@ -260,7 +267,8 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
           ],
         );
       },
-    );  }
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -272,44 +280,51 @@ class _ErrSendScreenState extends State<ErrSendScreen> {
             child: _imageFiles.isEmpty
                 ? Center(child: Text('画像が見つかりません'))
                 : ListView.builder(
-                  itemCount: _imageFiles.length,
-                  itemBuilder: (context, index) {
-                    final file = _imageFiles[index];
-                    final fileName = file.uri.pathSegments.last;
-                    return ListTile(
-                      leading: Image.file(file, width: 50, height: 50),
-                      title: Text(fileName),
-                      trailing: Checkbox(
-                        value: _selectedImages.contains(file),
-                        onChanged: (bool? selected) {
-                          setState(() {
-                            if (selected == true) {
-                              if (Provider.of<AppState>(context, listen: false).selectedStorage == "firebase" &&
-                                  _selectedImages.length >= 1) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('外部ストレージへ保存をする場合は、1枚ずつ選択してください。')),
-                                );
+                    itemCount: _imageFiles.length,
+                    itemBuilder: (context, index) {
+                      final file = _imageFiles[index];
+                      final fileName = file.uri.pathSegments.last;
+                      return ListTile(
+                        leading: Image.file(file, width: 50, height: 50),
+                        title: Text(fileName),
+                        trailing: Checkbox(
+                          value: _selectedImages.contains(file),
+                          onChanged: (bool? selected) {
+                            setState(() {
+                              if (selected == true) {
+                                if (Provider.of<AppState>(context,
+                                                listen: false)
+                                            .selectedStorage ==
+                                        "firebase" &&
+                                    _selectedImages.length >= 1) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            '外部ストレージへ保存をする場合は、1枚ずつ選択してください。')),
+                                  );
+                                } else {
+                                  _selectedImages.add(file);
+                                }
                               } else {
-                                _selectedImages.add(file);
+                                _selectedImages.remove(file);
                               }
-                            } else {
-                              _selectedImages.remove(file);
-                            }
-                          });
-                        },
-                      ),
-                    );
-                  },
-                ),
+                            });
+                          },
+                        ),
+                      );
+                    },
+                  ),
           ),
           ElevatedButton(
             onPressed: _isLoading ||
-                (_selectedImages.length != 1 &&
-                    Provider.of<AppState>(context, listen: false).selectedStorage == "cloud")
+                    (_selectedImages.length != 1 &&
+                        Provider.of<AppState>(context, listen: false)
+                                .selectedStorage ==
+                            "cloud")
                 ? null
                 : () async {
-              await _sendErrImage(_selectedImages);
-            },
+                    await _sendErrImage(_selectedImages);
+                  },
             child: _isLoading ? CircularProgressIndicator() : Text('送信'),
           ),
           SizedBox(height: 10),

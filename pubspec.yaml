@@ -37,7 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.1
   image_picker: ^1.1.2
-  image_editor_plus: ^1.0.4
+  image_editor_plus: ^1.0.6
   qr_flutter: ^4.1.0
   # firebase_core: ^3.8.1
   shared_preferences: ^2.3.3
@@ -68,6 +68,8 @@ dependencies:
   # firebase_auth: ^5.4.1
   supabase_flutter: ^2.8.3
   flutter_dotenv: ^5.2.1
+  google_fonts: ^6.2.1
+  flutter_colorpicker: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -123,3 +125,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  #一時的にコメントアウト
+  #fonts:
+  #  - family: PopFont
+  #    fonts:
+  #      - asset: assets/fonts/PopFont.ttf

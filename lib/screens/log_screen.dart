@@ -14,8 +14,10 @@ class LogScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("ログ画面")),
-      body: Consumer4<LocalServerManager, LocalClientManager, CameraScreenState, ErrSendScreenState>(
-        builder: (context, serverManager, clientManager, cameraState, errState, child) {
+      body: Consumer4<LocalServerManager, LocalClientManager, CameraScreenState,
+          ErrSendScreenState>(
+        builder: (context, serverManager, clientManager, cameraState, errState,
+            child) {
           // LocalClientManagerとCameraScreenStateのログは結合
           final combinedLogs = [
             ...clientManager.logs.map((log) => "Client: $log"),
@@ -24,7 +26,8 @@ class LogScreen extends StatelessWidget {
           ];
 
           // ログ数が最大数を超えていたら制限する
-          final limitedServerLogs = serverManager.logs.take(maxLogCount).toList();
+          final limitedServerLogs =
+              serverManager.logs.take(maxLogCount).toList();
           final limitedCombinedLogs = combinedLogs.take(maxLogCount).toList();
 
           return Column(
@@ -35,7 +38,8 @@ class LogScreen extends StatelessWidget {
                   itemCount: limitedServerLogs.length,
                   itemBuilder: (context, index) {
                     return ListTile(
-                      title: SelectableText("Server: ${limitedServerLogs[index]}"),
+                      title:
+                          SelectableText("Server: ${limitedServerLogs[index]}"),
                     );
                   },
                 ),

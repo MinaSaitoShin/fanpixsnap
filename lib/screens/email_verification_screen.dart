@@ -10,7 +10,8 @@ class EmailVerificationScreen extends StatefulWidget {
   EmailVerificationScreen({required this.email});
 
   @override
-  _EmailVerificationScreenState createState() => _EmailVerificationScreenState();
+  _EmailVerificationScreenState createState() =>
+      _EmailVerificationScreenState();
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
@@ -119,7 +120,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 },
                 child: Text(
                   "ユーザ新規登録画面に戻る",
-                  style: TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+                  style: TextStyle(
+                      color: Colors.blue, decoration: TextDecoration.underline),
                 ),
               ),
             ],

@@ -9,7 +9,8 @@ class LocalServerPage extends StatefulWidget {
   _LocalServerPageState createState() => _LocalServerPageState();
 }
 
-class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingObserver {
+class _LocalServerPageState extends State<LocalServerPage>
+    with WidgetsBindingObserver {
   // サーバー状態を格納する変数
   String _statusMessage = "サーバーが停止しています";
 
@@ -77,14 +78,12 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
       if (serverManager.isRunning && serverManager.getIpAddress) {
         // サーバーが動作中の場合
         _statusMessage = "サーバーが起動しています";
-      }
-      else if(!serverManager.getIpAddress) {
+      } else if (!serverManager.getIpAddress) {
         _qrData = "";
         _statusMessage = "IPアドレスを取得できません。サーバーが停止しています。";
-      }
-      else {
+      } else {
         _qrData = "";
-       _statusMessage = "サーバーが停止しています";
+        _statusMessage = "サーバーが停止しています";
       }
     });
   }
@@ -100,7 +99,7 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
     // サーバー停止フラグ更新
     _stopServerFlg = false;
     // サーバー起動後にQRコードを更新
-     _generateQrData(_localIpAddress);
+    _generateQrData(_localIpAddress);
   }
 
   // サーバーを停止
@@ -134,62 +133,63 @@ class _LocalServerPageState extends State<LocalServerPage> with WidgetsBindingOb
       appBar: AppBar(title: Text("ローカルサーバー設定")),
       body: Center(
         child: Consumer<LocalServerManager>(
-          builder: (context, serverManager, child) {
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            builder: (context, serverManager, child) {
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _statusMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18),
+              ),
+              SizedBox(height: 30),
+              // サーバーを起動するボタン
+              ElevatedButton(
+                onPressed: _startServer,
+                child: Text(" ローカルサーバー起動 "),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      serverManager.isRunning ? Colors.grey : Colors.white,
+                ),
+              ),
+              SizedBox(height: 30),
+              // サーバーを停止するボタン
+              ElevatedButton(
+                onPressed: _stopServer,
+                child: Text(" ローカルサーバー停止 "),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      !serverManager.isRunning ? Colors.grey : Colors.white,
+                ),
+              ),
+              SizedBox(height: 30),
+              // QRコードの表示
+              if (_qrData.isNotEmpty) ...[
                 Text(
-                  _statusMessage,
+                  "QRコードをスキャンして接続",
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(fontSize: 16),
                 ),
-                SizedBox(height: 30),
-                // サーバーを起動するボタン
-                ElevatedButton(
-                  onPressed: _startServer,
-                  child: Text(" ローカルサーバー起動 "),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: serverManager.isRunning ? Colors.grey : Colors.white,
-                  ),
+                SizedBox(height: 20),
+                Text(
+                  "サーバー情報: $_qrData",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
                 ),
-                SizedBox(height: 30),
-                // サーバーを停止するボタン
-                ElevatedButton(
-                  onPressed: _stopServer,
-                  child: Text(" ローカルサーバー停止 "),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: !serverManager.isRunning ? Colors.grey : Colors.white,
-                  ),
+                SizedBox(height: 20),
+                QrImageView(
+                  // QRコードに表示するデータ
+                  data: _qrData,
+                  // QRコードのバージョン
+                  version: QrVersions.auto,
+                  // QRコードのサイズ
+                  size: 200.0,
                 ),
-                SizedBox(height: 30),
-                // QRコードの表示
-                if (_qrData.isNotEmpty) ...[
-                  Text(
-                    "QRコードをスキャンして接続",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    "サーバー情報: $_qrData",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  SizedBox(height: 20),
-                  QrImageView(
-                    // QRコードに表示するデータ
-                    data: _qrData,
-                    // QRコードのバージョン
-                    version: QrVersions.auto,
-                    // QRコードのサイズ
-                    size: 200.0,
-                  ),
-                ],
               ],
-            );
-          }
+            ],
+          );
+        }),
       ),
-    ),
-  );
-}
+    );
+  }
 }

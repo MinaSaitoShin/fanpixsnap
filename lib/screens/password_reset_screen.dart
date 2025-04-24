@@ -35,6 +35,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       );
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

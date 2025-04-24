@@ -148,7 +148,8 @@ class _MainScreenState extends State<MainScreen> {
         storageGranted = storagePermission.isGranted;
       } else if (androidOsVersion >= 30) {
         // **Android 11 (API 30) 以上は `MANAGE_EXTERNAL_STORAGE` をリクエスト**
-        PermissionStatus manageStoragePermission = await Permission.manageExternalStorage.request();
+        PermissionStatus manageStoragePermission =
+            await Permission.manageExternalStorage.request();
         storageGranted = manageStoragePermission.isGranted;
       } else {
         // **Android 10 (API 29) 以下は `storage` 権限をリクエスト**
@@ -273,7 +274,9 @@ class _MainScreenState extends State<MainScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => DeleteImageScreen(folderName: "fanpixsnap")),
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            DeleteImageScreen(folderName: "fanpixsnap")),
                   );
                 },
                 icon: Icon(Icons.delete),
@@ -284,7 +287,9 @@ class _MainScreenState extends State<MainScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => DeleteImageScreen(folderName: "fanpixsnaperr")),
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            DeleteImageScreen(folderName: "fanpixsnaperr")),
                   );
                 },
                 icon: Icon(Icons.error),

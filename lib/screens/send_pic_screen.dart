@@ -104,5 +104,4 @@ class _SendPicScreenState extends State<SendPicScreen> {
       ),
     );
   }
-
 }

@@ -50,13 +50,17 @@ class LocalServerManager extends ChangeNotifier {
   void startNetworkMonitor() {
     _networkMonitorTimer = Timer.periodic(Duration(seconds: 5), (timer) async {
       var connectivityResult = await (Connectivity().checkConnectivity());
-      if (connectivityResult.toString() ==  '[ConnectivityResult.wifi]' && _getIpAddress && !_stopServerFlg) {
+      if (connectivityResult.toString() == '[ConnectivityResult.wifi]' &&
+          _getIpAddress &&
+          !_stopServerFlg) {
         if (!_isRunning) {
           _addLog('Wi-Fi接続を検出、サーバーを起動します');
           startServer();
         }
       } else {
-        if (_isRunning && connectivityResult != ConnectivityResult.wifi && !_getIpAddress) {
+        if (_isRunning &&
+            connectivityResult != ConnectivityResult.wifi &&
+            !_getIpAddress) {
           _addLog('Wi-Fi接続が切断されました。サーバーを停止します');
           stopServer();
         }
@@ -73,7 +77,7 @@ class LocalServerManager extends ChangeNotifier {
       _addLog("サーバーはすでに起動中です");
       return;
     }
-    if(!_getIpAddress) {
+    if (!_getIpAddress) {
       _addLog("IPアドレスが取得できません");
       return;
     }
@@ -177,13 +181,15 @@ class LocalServerManager extends ChangeNotifier {
       // Androidの場合、特定のディレクトリに保存
       if (Platform.isAndroid) {
         final directory = Directory('/storage/emulated/0/Pictures/fanpixsnap');
-        final filePath = '${directory.path}/received_image_${DateTime.now().toLocal().millisecondsSinceEpoch}.jpg';
+        final filePath =
+            '${directory.path}/received_image_${DateTime.now().toLocal().millisecondsSinceEpoch}.jpg';
         file = File(filePath);
       }
       // iOSの場合、アプリのドキュメントディレクトリに保存
       else if (Platform.isIOS) {
         final directory = await getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/fanpixsnap/received_image_${DateTime.now().toLocal().millisecondsSinceEpoch}.jpg';
+        final filePath =
+            '${directory.path}/fanpixsnap/received_image_${DateTime.now().toLocal().millisecondsSinceEpoch}.jpg';
         file = File(filePath);
       } else {
         throw Exception("Unsupported platform");
@@ -193,7 +199,6 @@ class LocalServerManager extends ChangeNotifier {
       await file.writeAsBytes(bytes);
       _addLog("画像保存完了: ${file.path}");
       return file;
-
     } catch (e) {
       // 保存エラー
       _addLog("画像保存エラー: $e");
@@ -212,10 +217,12 @@ class LocalServerManager extends ChangeNotifier {
     try {
       // URLの期限が切れているか確認
       final timestampStr = request.uri.queryParameters['timestamp'];
-      final expiresIn = int.parse(request.uri.queryParameters['expiresIn'] ?? '0');
-      final expired = timestampStr != null && isUrlExpired(timestampStr, expiresIn);
+      final expiresIn =
+          int.parse(request.uri.queryParameters['expiresIn'] ?? '0');
+      final expired =
+          timestampStr != null && isUrlExpired(timestampStr, expiresIn);
 
-      if(expired) {
+      if (expired) {
         request.response
           ..statusCode = HttpStatus.notFound
           ..write('URLの期限切れ')
@@ -275,7 +282,7 @@ class LocalServerManager extends ChangeNotifier {
       request.response
         ..statusCode = HttpStatus.ok
         ..headers.contentType = ContentType("image", "jpeg")
-      // 画像データをレスポンスに追加
+        // 画像データをレスポンスに追加
         ..add(await fileToSend.readAsBytes())
         ..close();
     } catch (e) {

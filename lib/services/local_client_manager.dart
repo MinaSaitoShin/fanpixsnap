@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 // ローカルクライアントを管理するクラス
-class LocalClientManager extends ChangeNotifier{
+class LocalClientManager extends ChangeNotifier {
   // ソケットオブジェクト
   Socket? _socket;
 
@@ -34,21 +34,24 @@ class LocalClientManager extends ChangeNotifier{
 
     try {
       // サーバーに接続
-      _socket = await Socket.connect(ipAddress, port, timeout: Duration(seconds: 5));
+      _socket =
+          await Socket.connect(ipAddress, port, timeout: Duration(seconds: 5));
       _isConnected = true;
       _addLog("サーバーに接続しました: $ipAddress:$port");
 
       // サーバーからのデータをリッスン（受信）
-      _socket!.listen((data) {
-        // 受信したバイトデータを文字列に変換
-        final message = String.fromCharCodes(data);
-        _addLog("サーバーからの応答: $message");
-      }, onDone: () {
-        // サーバーから切断された場合の処理
-        _addLog("接続が切断されました");
-        // 接続状態を更新
-        _isConnected = false;
-      },
+      _socket!.listen(
+        (data) {
+          // 受信したバイトデータを文字列に変換
+          final message = String.fromCharCodes(data);
+          _addLog("サーバーからの応答: $message");
+        },
+        onDone: () {
+          // サーバーから切断された場合の処理
+          _addLog("接続が切断されました");
+          // 接続状態を更新
+          _isConnected = false;
+        },
         onError: (error) {
           _addLog("接続エラー: $error");
           _isConnected = false;
@@ -75,6 +78,7 @@ class LocalClientManager extends ChangeNotifier{
       _addLog("ソケットが接続されていません");
     }
   }
+
   // 再接続を試みるメソッド
   void _attemptReconnect(String ipAddress, int port) {
     if (!_isConnected) {

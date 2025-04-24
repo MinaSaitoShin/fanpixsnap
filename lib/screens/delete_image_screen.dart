@@ -10,7 +10,8 @@ class DeleteImageScreen extends StatefulWidget {
   // 削除対象のフォルダ名
   final String folderName;
 
-  const DeleteImageScreen({Key? key, required this.folderName}) : super(key: key);
+  const DeleteImageScreen({Key? key, required this.folderName})
+      : super(key: key);
 
   @override
   _DeleteImageScreenState createState() => _DeleteImageScreenState();
@@ -50,7 +51,8 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
   // SDKバージョンを取得する関数
   Future<int> _getSdkVersion() async {
     final androidInfo = await DeviceInfoPlugin().androidInfo;
-    final int version = androidInfo.version.sdkInt;;
+    final int version = androidInfo.version.sdkInt;
+    ;
     return version;
   }
 
@@ -80,7 +82,6 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
           .where((file) => file.path.endsWith(".jpg"))
           .toList()
         ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-
     } else if (Platform.isAndroid) {
       // **Android のローカルストレージ**
       directory = Directory('/storage/emulated/0/Pictures/$folderName');
@@ -88,8 +89,8 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
           .listSync()
           .whereType<File>()
           .where((file) =>
-      file.path.endsWith(".jpg") &&
-          !file.path.contains("/.trashed-")) // **ゴミ箱フォルダを無視**
+              file.path.endsWith(".jpg") &&
+              !file.path.contains("/.trashed-")) // **ゴミ箱フォルダを無視**
           .toList()
         ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     } else {
@@ -102,7 +103,6 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
 
     return images;
   }
-
 
   Future<void> deleteImage(File image) async {
     try {
@@ -125,7 +125,8 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
         }
 
         if (targetAsset != null) {
-          List<String> deletedIds = await PhotoManager.editor.deleteWithIds([targetAsset.id]);
+          List<String> deletedIds =
+              await PhotoManager.editor.deleteWithIds([targetAsset.id]);
           if (deletedIds.isNotEmpty) {
             print("PhotoManager で削除成功 (iOS): ${image.path}");
           } else {
@@ -143,7 +144,8 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
 
       if (Platform.isAndroid) {
         try {
-          const platform = MethodChannel('com.example.fan_pix_snap/media_store');
+          const platform =
+              MethodChannel('com.example.fan_pix_snap/media_store');
           await platform.invokeMethod('scanFile', {'path': image.path});
           print("MediaStore 更新成功: ${image.path}");
         } catch (e) {
@@ -241,18 +243,22 @@ class _DeleteImageScreenState extends State<DeleteImageScreen> {
                   },
                   child: Stack(
                     children: [
-                      Image.file(image, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                      Image.file(image,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity),
                       if (isSelected)
                         Positioned(
                           top: 8,
                           right: 8,
-                          child: Icon(Icons.check_circle, color: Colors.redAccent, size: 24),
+                          child: Icon(Icons.check_circle,
+                              color: Colors.redAccent, size: 24),
                         ),
                     ],
                   ),
                 );
               },
-          ),
+            ),
     );
   }
 }

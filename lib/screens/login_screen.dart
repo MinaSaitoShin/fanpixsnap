@@ -62,11 +62,14 @@ class _LoginScreenState extends State<LoginScreen> {
       return "メールアドレスが確認されていません。確認メールをチェックしてください。";
     } else if (errorCode.contains("user_not_found")) {
       return "このメールアドレスのアカウントは存在しません。";
-    } else if (errorCode.contains("password_too_short") || errorCode.contains("weak_password")) {
+    } else if (errorCode.contains("password_too_short") ||
+        errorCode.contains("weak_password")) {
       return "パスワードは8文字以上で入力してください。";
-    } else if (errorCode.contains("network_error") || errorCode.contains("timeout")) {
+    } else if (errorCode.contains("network_error") ||
+        errorCode.contains("timeout")) {
       return "ネットワークエラーが発生しました。接続を確認してください。";
-    } else if (errorCode.contains("email_already_in_use") || errorCode.contains("user_already_exists")) {
+    } else if (errorCode.contains("email_already_in_use") ||
+        errorCode.contains("user_already_exists")) {
       return "このメールアドレスはすでに使用されています。";
     } else if (errorCode.contains("invalid_email")) {
       return "無効なメールアドレスです。正しい形式で入力してください。";
@@ -122,7 +125,8 @@ class _LoginScreenState extends State<LoginScreen> {
               },
               child: Text(
                 "アカウントをお持ちでない方はこちら",
-                style: TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+                style: TextStyle(
+                    color: Colors.blue, decoration: TextDecoration.underline),
               ),
             ),
             SizedBox(height: 20),
@@ -130,12 +134,14 @@ class _LoginScreenState extends State<LoginScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => PasswordResetScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => PasswordResetScreen()),
                 );
               },
               child: Text(
                 "パスワードをお忘れですか？",
-                style: TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+                style: TextStyle(
+                    color: Colors.blue, decoration: TextDecoration.underline),
               ),
             ),
           ],

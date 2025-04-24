@@ -17,7 +17,9 @@ class StorageQRCodeScreen extends StatelessWidget {
             if (snapshot.connectionState == ConnectionState.waiting) {
               // アップロード中のローディング
               return CircularProgressIndicator();
-            } else if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+            } else if (snapshot.hasError ||
+                !snapshot.hasData ||
+                snapshot.data!.isEmpty) {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
