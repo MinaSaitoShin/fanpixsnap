@@ -160,21 +160,30 @@ class _MainScreenState extends State<MainScreen> {
       final iosInfo = await DeviceInfoPlugin().iosInfo;
       final int iosVersion = int.parse(iosInfo.systemVersion.split('.')[0]);
       PermissionStatus photosPermission = await Permission.photos.request();
+      print("IOSのパーミッション：$photosPermission");
+      print("photosPermission status: $photosPermission");
+      print("isGranted: ${photosPermission.isGranted}");
+      print("isLimited: ${photosPermission.isLimited}");
+      print("isDenied: ${photosPermission.isDenied}");
+      print("isPermanentlyDenied: ${photosPermission.isPermanentlyDenied}");
 
       if (photosPermission.isGranted) {
         // **iOS でフルアクセスが許可された場合**
         cameraGranted = true;
         storageGranted = true;
+        print("IOSのパーミッション：フルアクセス");
       } else if (photosPermission.isLimited && iosVersion >= 14) {
         // **iOS 14 以降で「制限付きアクセス」**
         storageGranted = true; // **一部の写真のみアクセス可能**
         cameraGranted = false; // **カメラの利用は未許可の可能性**
+        print("IOSのパーミッション：制限付きアクセス");
         // **ユーザーに設定変更を促す**
         Future.microtask(() => PhotoManager.openSetting());
       } else {
         // **許可されていない場合**
         cameraGranted = false;
         storageGranted = false;
+        print("IOSのパーミッション未許可");
       }
     }
 

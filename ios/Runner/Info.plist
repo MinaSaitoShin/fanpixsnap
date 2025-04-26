@@ -57,13 +57,10 @@
     <string>マイクを利用するための理由を記載</string>
     <key>NSLocalNetworkUsageDescription</key>
     <string>ローカルネットワークへのアクセスを許可します</string>
-    <key>FirebaseAppCheck</key>
+    <key>NSAppTransportSecurity</key>
     <dict>
-        <key>AppCheck</key>
-        <dict>
-            <key>DeviceCheck</key>
-            <true/>
-        </dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
     </dict>
 </dict>
 </plist>
