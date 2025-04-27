@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'signup_screen.dart';
-import 'password_reset_screen.dart';
+import 'password_reset_request_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -135,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => PasswordResetScreen()),
+                      builder: (context) => PasswordResetRequestScreen()),
                 );
               },
               child: Text(
